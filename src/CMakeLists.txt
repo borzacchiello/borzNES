@@ -1,0 +1,30 @@
+cmake_minimum_required ( VERSION 3.19 )
+
+project ( borzNES )
+
+set ( CMAKE_C_STANDARD 17 )
+
+set ( borzNES_src
+    6502_cpu.c
+    alloc.c
+    cartridge.c
+    logging.c
+    mapper.c
+    memory.c
+    system.c
+    ui.c )
+
+set ( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address,undefined" )
+set ( CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address,undefined" )
+
+add_executable ( main
+    ${borzNES_src}
+    main.c )
+
+target_link_libraries ( main LINK_PUBLIC SDL2 SDL2_ttf )
+
+add_custom_command (
+        TARGET main POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+                ${CMAKE_SOURCE_DIR}/../font/courier.ttf
+                ${CMAKE_CURRENT_BINARY_DIR}/courier.ttf)
