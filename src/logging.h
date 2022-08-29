@@ -3,6 +3,7 @@
 
 void info(char* format, ...);
 void warning(char* format, ...);
-void panic(char* format, ...);
+
+__attribute__((noreturn)) void panic(char* format, ...);
 
 #endif

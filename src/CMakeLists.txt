@@ -11,6 +11,7 @@ set ( borzNES_src
     logging.c
     mapper.c
     memory.c
+    ppu.c
     system.c
     ui.c )
 

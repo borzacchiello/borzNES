@@ -63,6 +63,7 @@ Mapper* mapper_build(Cartridge* cart)
             NROM*   nrom = NROM_build(cart);
             Mapper* map  = malloc_or_fail(sizeof(Mapper));
             map->obj     = nrom;
+            map->name    = "NROM";
             map->read    = &NROM_read;
             map->write   = &NROM_write;
             map->destroy = &NROM_destroy;

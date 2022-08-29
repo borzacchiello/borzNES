@@ -6,12 +6,17 @@
 struct System;
 
 typedef struct Memory {
-    struct System* sys;
+    void* obj;
+    void (*destroy)(void*);
+    uint8_t (*read)(void*, uint16_t);
+    void (*write)(void*, uint16_t, uint8_t);
 } Memory;
 
-Memory* memory_build(struct System* sys);
-void    memory_destroy(Memory* mem);
+Memory* cpu_memory_build(struct System* sys);
+Memory* ppu_memory_build(struct System* sys);
+Memory* standalone_memory_build();
 
+void    memory_destroy(Memory* mem);
 uint8_t memory_read(Memory* mem, uint16_t addr);
 void    memory_write(Memory* mem, uint16_t addr, uint8_t value);
 

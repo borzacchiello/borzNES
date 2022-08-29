@@ -1,4 +1,5 @@
-#include "system.h"
+#include "6502_cpu.h"
+#include "memory.h"
 #include "ui.h"
 
 int main(int argc, char const* argv[])
@@ -32,26 +33,22 @@ int main(int argc, char const* argv[])
      cartridge_unload(cart);
      */
 
-    if (argc < 2)
-        return 2;
-
     uint8_t opcodes[] = {0xa2, 0x08, 0xca, 0x8e, 0x00, 0x02, 0xe0,
                          0x03, 0xd0, 0xf8, 0x8e, 0x01, 0x02, 0x00};
 
-    System* sys = system_build(argv[1]);
+    Cpu* cpu = cpu_standalone_build();
 
-    sys->cpu->PC = 0x0100;
-    for (uint32_t addr = 0x0100; addr < 0x0100 + sizeof(opcodes); ++addr)
-        memory_write(sys->cpu->mem, addr, opcodes[addr - 0x0100]);
+    cpu->PC = 0x2000;
+    for (uint32_t addr = 0x2000; addr < 0x2000 + sizeof(opcodes); ++addr)
+        memory_write(cpu->mem, addr, opcodes[addr - 0x2000]);
 
-    while (sys->cpu->PC != 0x010d) {
-        printf("%s\n", cpu_state(sys->cpu));
-        printf("%s\n", cpu_disassemble(sys->cpu, sys->cpu->PC));
-        cpu_step(sys->cpu);
+    while (cpu->PC != 0x200d) {
+        printf("%s\n", cpu_state(cpu));
+        printf("%s\n", cpu_disassemble(cpu, cpu->PC));
+        cpu_step(cpu);
     }
+    printf("cycles: %lu\n", cpu->cycles);
 
-    printf("cycles: %lu\n", sys->cpu->cycles);
-
-    system_destroy(sys);
+    cpu_destroy(cpu);
     return 0;
 }

@@ -1,14 +1,15 @@
 #ifndef CPU_H
 #define CPU_H
 
-#include "memory.h"
+#include <stdint.h>
 
+struct Memory;
 struct System;
 
 typedef struct Cpu {
-    Memory*  mem;
-    uint16_t PC; // program counter
-    uint8_t  SP; // stack pointer
+    struct Memory* mem;
+    uint16_t       PC; // program counter
+    uint8_t        SP; // stack pointer
     // 8bit regs
     uint8_t A, X, Y;
     // flags
@@ -27,10 +28,13 @@ typedef struct Cpu {
 } Cpu;
 
 Cpu* cpu_build(struct System* sys);
+Cpu* cpu_standalone_build();
 void cpu_destroy(Cpu* cpu);
 
 void     cpu_reset(Cpu* cpu);
 uint64_t cpu_step(Cpu* cpu);
+void     cpu_trigger_nmi(Cpu* cpu);
+void     cpu_trigger_irq(Cpu* cpu);
 
 uint16_t cpu_next_instr_address(Cpu* cpu, uint16_t addr);
 

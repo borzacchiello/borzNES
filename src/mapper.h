@@ -6,7 +6,8 @@
 struct Cartridge;
 
 typedef struct Mapper {
-    void* obj;
+    void*       obj;
+    const char* name;
     void (*destroy)(void* map);
     uint8_t (*read)(void* map, uint16_t addr);
     void (*write)(void* map, uint16_t addr, uint8_t value);

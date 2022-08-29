@@ -1,5 +1,6 @@
 #include "6502_cpu.h"
 #include "system.h"
+#include "memory.h"
 #include "logging.h"
 #include "alloc.h"
 
@@ -23,8 +24,12 @@
 #define AMODE_ZEROPAGEX   12
 #define AMODE_ZEROPAGEY   13
 
+#define NMI_VECTOR_ADDR     0xFFFAu
 #define RESET_VECTOR_ADDR   0xFFFCu
 #define IRQ_BRK_VECTOR_ADDR 0xFFFEu
+
+#define INT_NMI 1
+#define INT_IRQ 2
 
 // addressing mode for each instruction
 static uint8_t instr_addr_mode[] = {
@@ -148,8 +153,8 @@ static void unpack_flags(Cpu* cpu, uint8_t flags)
 
 static uint16_t read_16(Memory* mem, uint16_t addr)
 {
-    uint16_t h = memory_read(mem, addr);
-    uint16_t l = memory_read(mem, addr + 1);
+    uint16_t l = memory_read(mem, addr);
+    uint16_t h = memory_read(mem, addr + 1);
     return l | (h << 8);
 }
 
@@ -157,8 +162,8 @@ static uint16_t read_16(Memory* mem, uint16_t addr)
 // to wrap without incrementing the high byte
 static uint16_t read_16_bug(Memory* mem, uint16_t addr)
 {
-    uint16_t h = memory_read(mem, addr);
-    uint16_t l = memory_read(mem, (addr & 0xff00u) | ((addr + 1) & 0x00ffu));
+    uint16_t l = memory_read(mem, addr);
+    uint16_t h = memory_read(mem, (addr & 0xff00u) | ((addr + 1) & 0x00ffu));
     return l | (h << 8);
 }
 
@@ -193,8 +198,11 @@ static uint16_t stack_pop16(Cpu* cpu)
 }
 
 static inline void setZ(Cpu* cpu, uint8_t v) { cpu->Z = v == 0 ? 1 : 0; }
-static inline void setN(Cpu* cpu, uint8_t v) { cpu->N = v & 0x80 != 0 ? 1 : 0; }
-static void        compare(Cpu* cpu, uint8_t a, uint8_t b)
+static inline void setN(Cpu* cpu, uint8_t v)
+{
+    cpu->N = (v & 0x80) != 0 ? 1 : 0;
+}
+static void compare(Cpu* cpu, uint8_t a, uint8_t b)
 {
     setZ(cpu, a - b);
     setN(cpu, a - b);
@@ -321,7 +329,7 @@ static void handler_adc(Cpu* cpu, HandlerData* hd)
     setZ(cpu, cpu->A);
     setN(cpu, cpu->A);
     cpu->C = ((int32_t)a + (int32_t)b + (int32_t)c > 0xFF) ? 1 : 0;
-    cpu->V = ((a ^ b) & 0x80 == 0 && (a ^ cpu->A) & 0x80 == 0) ? 1 : 0;
+    cpu->V = (((a ^ b) & 0x80) == 0 && ((a ^ cpu->A) & 0x80) == 0) ? 1 : 0;
 }
 
 static void handler_nop(Cpu* cpu, HandlerData* hd) {}
@@ -514,7 +522,7 @@ static void handler_sbc(Cpu* cpu, HandlerData* hd)
     setZ(cpu, cpu->A);
     setN(cpu, cpu->A);
     cpu->C = ((int32_t)a - (int32_t)b - (int32_t)(1 - c) > 0) ? 1 : 0;
-    cpu->V = ((a ^ b) & 0x80 != 0 && (a ^ cpu->A) & 0x80 != 0) ? 1 : 0;
+    cpu->V = (((a ^ b) & 0x80) != 0 && ((a ^ cpu->A) & 0x80) != 0) ? 1 : 0;
 }
 
 static void handler_bcs(Cpu* cpu, HandlerData* hd)
@@ -750,7 +758,15 @@ static opcode_handler opcode_handlers[] = {
 Cpu* cpu_build(System* sys)
 {
     Cpu* cpu = calloc_or_fail(sizeof(Cpu));
-    cpu->mem = memory_build(sys);
+    cpu->mem = cpu_memory_build(sys);
+
+    return cpu;
+}
+
+Cpu* cpu_standalone_build()
+{
+    Cpu* cpu = calloc_or_fail(sizeof(Cpu));
+    cpu->mem = standalone_memory_build();
 
     return cpu;
 }
@@ -770,6 +786,31 @@ void cpu_reset(Cpu* cpu)
     cpu->U = 1;
 }
 
+static void handle_nmi(Cpu* cpu)
+{
+    stack_push16(cpu, cpu->PC);
+    handler_php(cpu, NULL);
+    cpu->PC = read_16(cpu->mem, NMI_VECTOR_ADDR);
+    cpu->I  = 1;
+    cpu->cycles += 7;
+}
+
+static void handle_irq(Cpu* cpu)
+{
+    stack_push16(cpu, cpu->PC);
+    handler_php(cpu, NULL);
+    cpu->PC = read_16(cpu->mem, IRQ_BRK_VECTOR_ADDR);
+    cpu->I  = 1;
+    cpu->cycles += 7;
+}
+
+void cpu_trigger_nmi(Cpu* cpu) { cpu->interrupt = INT_NMI; }
+void cpu_trigger_irq(Cpu* cpu)
+{
+    if (!cpu->I)
+        cpu->interrupt = INT_IRQ;
+}
+
 uint64_t cpu_step(Cpu* cpu)
 {
     if (cpu->stall > 0) {
@@ -779,7 +820,11 @@ uint64_t cpu_step(Cpu* cpu)
 
     uint64_t prev_cycles = cpu->cycles;
 
-    // TODO: interrupts
+    if (cpu->interrupt == INT_NMI)
+        handle_nmi(cpu);
+    else if (cpu->interrupt == INT_IRQ)
+        handle_irq(cpu);
+    cpu->interrupt = 0;
 
     uint8_t opcode = memory_read(cpu->mem, cpu->PC);
     uint8_t amode  = instr_addr_mode[opcode];
