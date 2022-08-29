@@ -40,14 +40,11 @@ int main(int argc, char const* argv[])
 
     System* sys = system_build(argv[1]);
 
-    sys->cpu->PC = 0x2000;
-    for (uint32_t addr = 0x2000; addr < 0x2000 + sizeof(opcodes); ++addr)
-        memory_write(sys->cpu->mem, addr, opcodes[addr - 0x2000]);
+    sys->cpu->PC = 0x0100;
+    for (uint32_t addr = 0x0100; addr < 0x0100 + sizeof(opcodes); ++addr)
+        memory_write(sys->cpu->mem, addr, opcodes[addr - 0x0100]);
 
-    memory_write(sys->cpu->mem, 0xFFFE, 0xDE);
-    memory_write(sys->cpu->mem, 0xFFFF, 0xAD);
-
-    while (sys->cpu->PC != 0xdead) {
+    while (sys->cpu->PC != 0x010d) {
         printf("%s\n", cpu_state(sys->cpu));
         printf("%s\n", cpu_disassemble(sys->cpu, sys->cpu->PC));
         cpu_step(sys->cpu);

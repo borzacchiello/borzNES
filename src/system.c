@@ -13,6 +13,7 @@ System* system_build(const char* rom_path)
     sys->mapper = map;
     sys->cpu    = cpu;
 
+    cpu_reset(cpu);
     return sys;
 }
 

@@ -51,9 +51,9 @@ static void NROM_write(void* _map, uint16_t addr, uint8_t value)
     } else if (addr >= 0x6000) {
         int index              = addr - 0x6000;
         map->cart->SRAM[index] = value;
+    } else {
+        panic("unable to write at address 0x%04x from NROM mapper", addr);
     }
-
-    panic("unable to write at address 0x%04x from NROM mapper", addr);
 }
 
 Mapper* mapper_build(Cartridge* cart)

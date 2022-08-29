@@ -6,8 +6,6 @@
 struct System;
 
 typedef struct Memory {
-    // TODO now it is just flat
-    uint8_t*       buf;
     struct System* sys;
 } Memory;
 
