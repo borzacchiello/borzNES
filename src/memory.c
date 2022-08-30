@@ -3,6 +3,10 @@
 #include "system.h"
 #include "mapper.h"
 #include "logging.h"
+#include "cartridge.h"
+#include "ppu.h"
+
+#include <assert.h>
 
 typedef struct InternalMemory {
     struct System* sys;
@@ -127,6 +131,19 @@ static void cpu_memory_write(void* _mem, uint16_t addr, uint8_t value)
     panic("Invalid write @ 0x%04x [0x%02x]", addr, value);
 }
 
+static uint16_t ppu_mirror_tab[3][4] = {
+    {0, 0, 1, 1}, {0, 1, 0, 1}, {1, 1, 1, 1}};
+
+static uint16_t mirror_address(uint8_t mirror_type, uint16_t addr)
+{
+    assert(mirror_type >= 0 && mirror_type <= 2);
+
+    addr         = (addr - 0x2000u) % 0x1000u;
+    uint16_t tab = addr / 0x400u;
+    uint16_t off = addr % 0x400u;
+    return 0x2000u + ppu_mirror_tab[mirror_type][tab] * 0x400u + off;
+}
+
 static uint8_t ppu_memory_read(void* _mem, uint16_t addr)
 {
     InternalMemory* mem = (InternalMemory*)_mem;
@@ -135,7 +152,9 @@ static uint8_t ppu_memory_read(void* _mem, uint16_t addr)
         return mapper_read(mem->sys->mapper, addr);
     }
     if (addr < 0x3F00) {
-        panic("PPU @ 0x%04x: currently unsupported read", addr);
+        return mem->sys->ppu
+            ->nametable_data[mirror_address(mem->sys->cart->mirror, addr) %
+                             2048u];
     }
     if (addr < 0x4000) {
         panic("PPU @ 0x%04x: currently unsupported read", addr);
@@ -152,8 +171,9 @@ static void ppu_memory_write(void* _mem, uint16_t addr, uint8_t value)
         mapper_write(mem->sys->mapper, addr, value);
     }
     if (addr < 0x3F00) {
-        panic("PPU @ 0x%04x: currently unsupported write [0x%02x]", addr,
-              value);
+        mem->sys->ppu
+            ->nametable_data[mirror_address(mem->sys->cart->mirror, addr) %
+                             2048u] = value;
     }
     if (addr < 0x4000) {
         panic("PPU @ 0x%04x: currently unsupported write [0x%02x]", addr,

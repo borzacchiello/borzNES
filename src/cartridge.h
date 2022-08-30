@@ -3,7 +3,11 @@
 
 #include <stdint.h>
 
-typedef enum { VERTICAL, HORIZONTAL } Mirroring;
+typedef enum {
+    MIRROR_HORIZONTAL = 0,
+    MIRROR_VERTICAL   = 1,
+    MIRROR_ALL        = 2
+} Mirroring;
 
 typedef struct Cartridge {
     char*     fpath;

@@ -779,8 +779,9 @@ void cpu_destroy(Cpu* cpu)
 
 void cpu_reset(Cpu* cpu)
 {
-    cpu->PC = read_16(cpu->mem, RESET_VECTOR_ADDR);
-    cpu->SP = 0xFDu;
+    cpu->PC     = read_16(cpu->mem, RESET_VECTOR_ADDR);
+    cpu->SP     = 0xFDu;
+    cpu->cycles = 0;
 
     cpu->I = 1;
     cpu->U = 1;

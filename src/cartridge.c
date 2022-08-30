@@ -8,9 +8,10 @@
 #define HEADER_SIZE  16u
 #define TRAINER_SIZE 512u
 
-#define MIRRORING_MASK (uint8_t)(1 << 0)
-#define BATTERY_MASK   (uint8_t)(1 << 1)
-#define TRAINER_MASK   (uint8_t)(1 << 2)
+#define MIRRORING_MASK  (uint8_t)(1 << 0)
+#define BATTERY_MASK    (uint8_t)(1 << 1)
+#define TRAINER_MASK    (uint8_t)(1 << 2)
+#define MIRROR_ALL_MASK (uint8_t)(1 << 3)
 
 typedef struct {
     uint8_t* buffer;
@@ -64,9 +65,12 @@ Cartridge* cartridge_load(const char* path)
     uint8_t flag_10 = raw.buffer[10];
 
     if ((flag_6 & MIRRORING_MASK) == 0)
-        cart->mirror = HORIZONTAL;
+        cart->mirror = MIRROR_HORIZONTAL;
     else
-        cart->mirror = VERTICAL;
+        cart->mirror = MIRROR_VERTICAL;
+    if (flag_6 & MIRROR_ALL_MASK)
+        cart->mirror = MIRROR_ALL;
+
     cart->battery = (flag_6 & BATTERY_MASK) > 0;
     cart->mapper  = (flag_6 >> 4) | (flag_7 & 0xf);
 
@@ -130,6 +134,8 @@ void cartridge_print(Cartridge* cart)
     printf("  mapper:    %u\n", cart->mapper);
     printf("  battery:   %s\n", cart->battery ? "true" : "false");
     printf("  mirroring: %s\n",
-           cart->mirror == HORIZONTAL ? "horizontal" : "vertical");
+           cart->mirror == MIRROR_HORIZONTAL
+               ? "horizontal"
+               : (cart->mirror == MIRROR_VERTICAL ? "vertical" : "all"));
     printf("}\n");
 }
