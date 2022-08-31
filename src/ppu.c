@@ -5,6 +5,9 @@
 #include "alloc.h"
 #include "logging.h"
 
+#include <stdio.h>
+#include <string.h>
+
 #define MASK_NAME_TABLE           (uint32_t)(3u)
 #define FLAG_SPRITE_OVERFLOW      (uint32_t)(1u << 2)
 #define FLAG_SPRITE_HIT_ZERO      (uint32_t)(1u << 3)
@@ -22,6 +25,7 @@
 #define FLAG_RED_TINT             (uint32_t)(1u << 15)
 #define FLAG_GREEN_TINT           (uint32_t)(1u << 16)
 #define FLAG_BLUE_TINT            (uint32_t)(1u << 17)
+#define FLAG_TRIGGER_NMI          (uint32_t)(1u << 18)
 
 Ppu* ppu_build(System* sys)
 {
@@ -46,6 +50,9 @@ void ppu_reset(Ppu* ppu)
     ppu->frame    = 0;
 }
 
+static void set_vertical_blank(Ppu* ppu) { ppu->flags |= FLAG_IN_VBLANK; }
+static void clear_vertical_blank(Ppu* ppu) { ppu->flags &= ~FLAG_IN_VBLANK; }
+
 static void update_cycle(Ppu* ppu)
 {
     ppu->cycle++;
@@ -60,7 +67,24 @@ static void update_cycle(Ppu* ppu)
     }
 }
 
-void ppu_step(Ppu* ppu) { update_cycle(ppu); }
+void ppu_step(Ppu* ppu)
+{
+    if ((ppu->flags & FLAG_IN_VBLANK) && (ppu->flags & FLAG_TRIGGER_NMI)) {
+        ppu->flags &= ~FLAG_TRIGGER_NMI;
+        cpu_trigger_nmi(ppu->sys->cpu);
+    }
+
+    update_cycle(ppu);
+
+    if (ppu->scanline == 241 && ppu->cycle == 1) {
+        set_vertical_blank(ppu);
+    }
+    if (ppu->scanline == 261 && ppu->cycle == 1) {
+        clear_vertical_blank(ppu);
+        ppu->flags &= ~FLAG_SPRITE_HIT_ZERO;
+        ppu->flags &= ~FLAG_SPRITE_OVERFLOW;
+    }
+}
 
 static uint8_t read_PPUSTATUS(Ppu* ppu)
 {
@@ -171,7 +195,7 @@ static void write_PPUCTRL(Ppu* ppu, uint8_t value)
     if ((value >> 6) & 1)
         ppu->flags |= FLAG_MASTER_SLAVE;
     if ((value >> 7) & 1)
-        ppu->flags |= FLAG_IN_VBLANK;
+        ppu->flags |= FLAG_TRIGGER_NMI;
 
     // t: ....BA.. ........ = d: ......BA
     ppu->t |= ((uint16_t)value & 0x03u) << 10;
@@ -313,19 +337,34 @@ void ppu_write_register(Ppu* ppu, uint16_t addr, uint8_t value)
     }
     if (addr == 0x2004) {
         write_OAMDATA(ppu, value);
+        return;
     }
     if (addr == 0x2005) {
         write_PPUSCROLL(ppu, value);
+        return;
     }
     if (addr == 0x2006) {
         write_PPUADDR(ppu, value);
+        return;
     }
     if (addr == 0x2007) {
         write_PPUDATA(ppu, value);
+        return;
     }
     if (addr == 0x4014) {
         write_OAMDMA(ppu, value);
+        return;
     }
 
     panic("ppu: invalid write to 0x%04x [0x%02x]", addr, value);
+}
+
+const char* ppu_tostring(Ppu* ppu)
+{
+    static char res[512];
+    memset(res, 0, sizeof(res));
+
+    sprintf(res, "frame: %u, scanline: %u, cycle: %u, flags: 0x%08x",
+            ppu->frame, ppu->scanline, ppu->cycle, ppu->flags);
+    return res;
 }

@@ -19,6 +19,7 @@ System* system_build(const char* rom_path)
     sys->cart   = cart;
     sys->mapper = map;
     sys->cpu    = cpu;
+    sys->ppu    = ppu;
 
     cpu_reset(cpu);
     ppu_reset(ppu);
@@ -31,6 +32,17 @@ void system_destroy(System* sys)
     mapper_destroy(sys->mapper);
     cpu_destroy(sys->cpu);
     free(sys);
+}
+
+uint64_t system_step(System* sys)
+{
+    uint64_t cpu_cycles = cpu_step(sys->cpu);
+    uint64_t ppu_cycles = 3ul * cpu_cycles;
+
+    for (uint64_t i = 0; i < ppu_cycles; ++i) {
+        ppu_step(sys->ppu);
+    }
+    return cpu_cycles;
 }
 
 const char* system_tostring(System* sys)

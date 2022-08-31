@@ -41,6 +41,6 @@ uint16_t cpu_next_instr_address(Cpu* cpu, uint16_t addr);
 // NB: the following functions will return a temporary buffer, every new call to
 // them will invalidate old buffers
 const char* cpu_disassemble(Cpu* cpu, uint16_t addr);
-const char* cpu_state(Cpu* cpu);
+const char* cpu_tostring(Cpu* cpu);
 
 #endif

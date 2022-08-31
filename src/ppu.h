@@ -39,4 +39,6 @@ void    ppu_write_register(Ppu* ppu, uint16_t addr, uint8_t value);
 
 void ppu_reset(Ppu* ppu);
 
+const char* ppu_tostring(Ppu* ppu);
+
 #endif

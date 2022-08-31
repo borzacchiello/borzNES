@@ -47,16 +47,16 @@ static void standalone_memory_destroy(void* _mem)
 static uint8_t cpu_memory_read(void* _mem, uint16_t addr)
 {
     InternalMemory* mem = (InternalMemory*)_mem;
+    Ppu*            ppu = mem->sys->ppu;
+
     if (addr < 0x2000) {
         return mem->sys->RAM[addr % 0x800];
     }
     if (addr < 0x4000) {
-        warning("0x%04x: PPU read not currently supported", addr);
-        return 0;
+        return ppu_read_register(ppu, 0x2000u + addr % 8);
     }
     if (addr == 0x4014) {
-        warning("0x%04x: PPU read not currently supported", addr);
-        return 0;
+        return ppu_read_register(ppu, addr);
     }
     if (addr == 0x4015) {
         warning("0x%04x: APU read not currently supported", addr);
@@ -84,13 +84,14 @@ static uint8_t cpu_memory_read(void* _mem, uint16_t addr)
 static void cpu_memory_write(void* _mem, uint16_t addr, uint8_t value)
 {
     InternalMemory* mem = (InternalMemory*)_mem;
+    Ppu*            ppu = mem->sys->ppu;
+
     if (addr < 0x2000) {
         mem->sys->RAM[addr % 0x800] = value;
         return;
     }
     if (addr < 0x4000) {
-        warning("0x%04x [0x%02x]: PPU write not currently supported", addr,
-                value);
+        ppu_write_register(ppu, 0x2000u + addr % 8, value);
         return;
     }
     if (addr < 0x4014) {
@@ -99,8 +100,7 @@ static void cpu_memory_write(void* _mem, uint16_t addr, uint8_t value)
         return;
     }
     if (addr == 0x4014) {
-        warning("0x%04x [0x%02x]: PPU write not currently supported", addr,
-                value);
+        ppu_write_register(ppu, addr, value);
         return;
     }
     if (addr == 0x4015) {
@@ -144,20 +144,35 @@ static uint16_t mirror_address(uint8_t mirror_type, uint16_t addr)
     return 0x2000u + ppu_mirror_tab[mirror_type][tab] * 0x400u + off;
 }
 
+static uint8_t read_palette(Ppu* ppu, uint16_t addr)
+{
+    if (addr >= 16 && addr % 4 == 0)
+        addr -= 16;
+    return ppu->palette_data[addr];
+}
+
+static void write_palette(Ppu* ppu, uint16_t addr, uint8_t val)
+{
+    if (addr >= 16 && addr % 4 == 0)
+        addr -= 16;
+    ppu->palette_data[addr] = val;
+}
+
 static uint8_t ppu_memory_read(void* _mem, uint16_t addr)
 {
-    InternalMemory* mem = (InternalMemory*)_mem;
-    addr                = addr % 0x4000;
+    InternalMemory* mem  = (InternalMemory*)_mem;
+    Ppu*            ppu  = mem->sys->ppu;
+    Cartridge*      cart = mem->sys->cart;
+
+    addr = addr % 0x4000;
     if (addr < 0x2000) {
         return mapper_read(mem->sys->mapper, addr);
     }
     if (addr < 0x3F00) {
-        return mem->sys->ppu
-            ->nametable_data[mirror_address(mem->sys->cart->mirror, addr) %
-                             2048u];
+        return ppu->nametable_data[mirror_address(cart->mirror, addr) % 2048u];
     }
     if (addr < 0x4000) {
-        panic("PPU @ 0x%04x: currently unsupported read", addr);
+        return read_palette(ppu, addr % 32);
     }
 
     panic("Invalid read in PPU @ 0x%04x", addr);
@@ -165,19 +180,22 @@ static uint8_t ppu_memory_read(void* _mem, uint16_t addr)
 
 static void ppu_memory_write(void* _mem, uint16_t addr, uint8_t value)
 {
-    InternalMemory* mem = (InternalMemory*)_mem;
-    addr                = addr % 0x4000;
+    InternalMemory* mem  = (InternalMemory*)_mem;
+    Ppu*            ppu  = mem->sys->ppu;
+    Cartridge*      cart = mem->sys->cart;
+
+    addr = addr % 0x4000;
     if (addr < 0x2000) {
         mapper_write(mem->sys->mapper, addr, value);
+        return;
     }
     if (addr < 0x3F00) {
-        mem->sys->ppu
-            ->nametable_data[mirror_address(mem->sys->cart->mirror, addr) %
-                             2048u] = value;
+        ppu->nametable_data[mirror_address(cart->mirror, addr) % 2048u] = value;
+        return;
     }
     if (addr < 0x4000) {
-        panic("PPU @ 0x%04x: currently unsupported write [0x%02x]", addr,
-              value);
+        write_palette(ppu, addr % 32u, value);
+        return;
     }
 
     panic("Invalid write in PPU @ 0x%04x [0x%02x]", addr, value);

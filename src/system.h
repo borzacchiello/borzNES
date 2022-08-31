@@ -19,6 +19,8 @@ typedef struct System {
 System* system_build(const char* rom_path);
 void    system_destroy(System* sys);
 
+uint64_t system_step(System* sys);
+
 // It returns a local buffer that will be invalidated
 // if the function is called again
 const char* system_tostring(System* sys);

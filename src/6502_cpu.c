@@ -169,20 +169,21 @@ static uint16_t read_16_bug(Memory* mem, uint16_t addr)
 
 static void stack_push(Cpu* cpu, uint8_t v)
 {
-    uint16_t addr = 0x100u | cpu->SP;
+    uint16_t addr = 0x100u | (uint16_t)cpu->SP;
     memory_write(cpu->mem, addr, v);
     cpu->SP--;
 }
 
 static uint8_t stack_pop(Cpu* cpu)
 {
-    uint16_t addr = 0x100u | cpu->SP;
-    uint8_t  res  = memory_read(cpu->mem, addr);
     cpu->SP++;
+    uint16_t addr = 0x100u | (uint16_t)cpu->SP;
+    uint8_t  res  = memory_read(cpu->mem, addr);
     return res;
 }
 
-static void stack_push16(Cpu* cpu, uint16_t v)
+static uint16_t stack_pop16(Cpu* cpu);
+static void     stack_push16(Cpu* cpu, uint16_t v)
 {
     uint8_t h = v >> 8;
     uint8_t l = v & 0xff;
@@ -192,8 +193,8 @@ static void stack_push16(Cpu* cpu, uint16_t v)
 
 static uint16_t stack_pop16(Cpu* cpu)
 {
-    uint16_t h = stack_pop(cpu);
     uint16_t l = stack_pop(cpu);
+    uint16_t h = stack_pop(cpu);
     return (h << 8) | l;
 }
 
@@ -789,6 +790,7 @@ void cpu_reset(Cpu* cpu)
 
 static void handle_nmi(Cpu* cpu)
 {
+    printf("pushing 0x%04x\n", cpu->PC);
     stack_push16(cpu, cpu->PC);
     handler_php(cpu, NULL);
     cpu->PC = read_16(cpu->mem, NMI_VECTOR_ADDR);
@@ -1007,7 +1009,7 @@ const char* cpu_disassemble(Cpu* cpu, uint16_t addr)
     return (const char*)res;
 }
 
-const char* cpu_state(Cpu* cpu)
+const char* cpu_tostring(Cpu* cpu)
 {
 #undef STR_SIZE
 #define STR_SIZE 60
