@@ -21,6 +21,11 @@ typedef struct Ppu {
     uint8_t  w; // write toggle
     uint8_t  f; // even/odd frame flag
 
+    uint8_t name_table_byte;
+    uint8_t attribute_table_byte;
+    uint8_t pattern_table_low;
+    uint8_t pattern_table_high;
+
     uint32_t frame;
     uint16_t cycle;    // 0-340
     uint16_t scanline; // 0-261

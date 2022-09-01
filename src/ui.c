@@ -105,8 +105,8 @@ void window_destroy(Window* win)
     free(win);
 }
 
-void window_draw_text(Window* win, uint32_t row, uint32_t col, Color color,
-                      char* text)
+static void window_draw_text_internal(Window* win, uint32_t row, uint32_t col,
+                                      Color color, char* text)
 {
     uint32_t tlen = (uint32_t)strlen(text);
     if (col > win->text_cols || tlen + col > win->text_cols)
@@ -130,10 +130,33 @@ void window_draw_text(Window* win, uint32_t row, uint32_t col, Color color,
     SDL_DestroyTexture(texture);
 }
 
+void window_draw_text(Window* win, uint32_t row, uint32_t col, Color color,
+                      const char* text)
+{
+    char* text_dup = strdup(text);
+    if (text_dup == NULL)
+        panic("strdup failed");
+
+    uint32_t i     = 0;
+    char*    token = strtok(text_dup, "\n");
+    while (token != NULL) {
+        window_draw_text_internal(win, row + i++, col, color, token);
+        token = strtok(NULL, "\n");
+    }
+
+    free(text_dup);
+}
+
 void window_draw_pixel(Window* win, Point p, Color c)
 {
     SDL_SetRenderDrawColor(win->sdl_renderer, c.r, c.g, c.b, c.a);
     SDL_RenderDrawPoint(win->sdl_renderer, p.x, p.y);
+}
+
+void window_prepare_redraw(Window* win)
+{
+    SDL_SetRenderDrawColor(win->sdl_renderer, 0, 0, 0, 0);
+    SDL_RenderClear(win->sdl_renderer);
 }
 
 void window_present(Window* win) { SDL_RenderPresent(win->sdl_renderer); }

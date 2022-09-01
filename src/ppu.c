@@ -50,6 +50,37 @@ void ppu_reset(Ppu* ppu)
     ppu->frame    = 0;
 }
 
+static void increment_x(Ppu* ppu)
+{
+    if ((ppu->v & (uint16_t)0x001F) == 31u) { // if coarse X == 31
+        ppu->v &= ~(uint16_t)0x001F;          // coarse X = 0
+        ppu->v ^= (uint16_t)0x0400;           // switch horizontal nametable
+    } else {
+        ppu->v += 1u; // increment coarse X
+    }
+}
+
+static void increment_y(Ppu* ppu)
+{
+    if ((ppu->v & (uint16_t)0x7000u) != (uint16_t)0x7000) { // if fine Y < 7
+        ppu->v += 0x1000u;                                  // increment fine Y
+        return;
+    }
+
+    ppu->v &= ~(uint16_t)0x7000;                   // fine Y = 0
+    uint16_t y = (ppu->v & (uint16_t)0x03E0) >> 5; // let y = coarse Y
+    if (y == 29u) {
+        y = 0u;                     // coarse Y = 0
+        ppu->v ^= (uint16_t)0x0800; // switch vertical nametable
+    } else if (y == 31u) {
+        y = 0u; // coarse Y = 0, nametable not switched
+    } else {
+        y += 1u; // increment coarse Y
+    }
+    ppu->v =
+        (ppu->v & ~(uint16_t)0x03E0) | (y << 5); // put coarse Y back into v
+}
+
 static void set_vertical_blank(Ppu* ppu) { ppu->flags |= FLAG_IN_VBLANK; }
 static void clear_vertical_blank(Ppu* ppu) { ppu->flags &= ~FLAG_IN_VBLANK; }
 
@@ -76,6 +107,51 @@ void ppu_step(Ppu* ppu)
 
     update_cycle(ppu);
 
+    int rendering_enabled =
+        ppu->flags & (FLAG_SHOW_BACKGROUND | FLAG_SHOW_SPRITES);
+    int pre_line        = ppu->scanline == 261u;
+    int visible_line    = ppu->scanline < 240u;
+    int render_line     = pre_line || visible_line;
+    int pre_fetch_cycle = ppu->cycle >= 321u && ppu->cycle <= 336u;
+    int visible_cycle   = ppu->cycle >= 1u && ppu->cycle <= 256u;
+    int fetch_cycle     = pre_fetch_cycle || visible_cycle;
+
+    // BACKGROUND
+    if (rendering_enabled) {
+        if (render_line && fetch_cycle) {
+            switch (ppu->cycle % 8) {
+                case 0:
+                    break;
+                case 1:
+                    break;
+                case 3:
+                    break;
+                case 5:
+                    break;
+                case 7:
+                    break;
+            }
+        }
+        if (visible_line && visible_cycle) {
+            // RENDER PIXEL
+        }
+        if (pre_line && ppu->cycle >= 280u && ppu->cycle <= 304u) {
+            // COPY Y
+        }
+        if (render_line) {
+            if (fetch_cycle && ppu->cycle % 8 == 0) {
+                increment_x(ppu);
+            }
+            if (ppu->cycle == 256u) {
+                increment_y(ppu);
+            }
+            if (ppu->cycle == 257u) {
+                // COPY X
+            }
+        }
+    }
+
+    // VBLANK
     if (ppu->scanline == 241 && ppu->cycle == 1) {
         set_vertical_blank(ppu);
     }
@@ -323,6 +399,8 @@ uint8_t ppu_read_register(Ppu* ppu, uint16_t addr)
 
 void ppu_write_register(Ppu* ppu, uint16_t addr, uint8_t value)
 {
+    ppu->bus_content = value;
+
     if (addr == 0x2000) {
         write_PPUCTRL(ppu, value);
         return;
@@ -361,10 +439,13 @@ void ppu_write_register(Ppu* ppu, uint16_t addr, uint8_t value)
 
 const char* ppu_tostring(Ppu* ppu)
 {
-    static char res[512];
+    static char res[256];
     memset(res, 0, sizeof(res));
 
-    sprintf(res, "frame: %u, scanline: %u, cycle: %u, flags: 0x%08x",
-            ppu->frame, ppu->scanline, ppu->cycle, ppu->flags);
+    sprintf(res,
+            "PPU_F:  %u\n"
+            "PPU_SL: %u\n"
+            "PPU_C:  %u\n",
+            ppu->frame, ppu->scanline, ppu->cycle);
     return res;
 }

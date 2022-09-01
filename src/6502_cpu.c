@@ -790,7 +790,6 @@ void cpu_reset(Cpu* cpu)
 
 static void handle_nmi(Cpu* cpu)
 {
-    printf("pushing 0x%04x\n", cpu->PC);
     stack_push16(cpu, cpu->PC);
     handler_php(cpu, NULL);
     cpu->PC = read_16(cpu->mem, NMI_VECTOR_ADDR);
@@ -1012,15 +1011,19 @@ const char* cpu_disassemble(Cpu* cpu, uint16_t addr)
 const char* cpu_tostring(Cpu* cpu)
 {
 #undef STR_SIZE
-#define STR_SIZE 60
+#define STR_SIZE 256
 
     static char res[STR_SIZE];
     memset(res, 0, STR_SIZE);
 
     sprintf(res,
-            "PC:%04x SP:%02x A:%02x X:%02x Y:%02x "
-            "C:%u Z:%u I:%u D:%u B:%u V:%u N:%u",
-            cpu->PC, cpu->SP, cpu->A, cpu->X, cpu->Y, cpu->C, cpu->Z, cpu->I,
-            cpu->D, cpu->B, cpu->V, cpu->N);
+            "Flags: 0x%04x\n"
+            "PC:    0x%04x\n"
+            "SP:    0x%02x\n"
+            "A:     0x%02x [ %u ]\n"
+            "X:     0x%02x [ %u ]\n"
+            "Y:     0x%02x [ %u ]\n",
+            pack_flags(cpu), cpu->PC, cpu->SP, cpu->A, cpu->A, cpu->X, cpu->X,
+            cpu->Y, cpu->Y);
     return res;
 }

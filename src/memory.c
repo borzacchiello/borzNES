@@ -166,12 +166,15 @@ static uint8_t ppu_memory_read(void* _mem, uint16_t addr)
 
     addr = addr % 0x4000;
     if (addr < 0x2000) {
+        // [ 0x0000 -> 0x1FFF ] Pattern Memory (CHR)
         return mapper_read(mem->sys->mapper, addr);
     }
     if (addr < 0x3F00) {
+        // Nametable Memory (VRAM) [ 0x2000 -> 0x3FFF ]
         return ppu->nametable_data[mirror_address(cart->mirror, addr) % 2048u];
     }
     if (addr < 0x4000) {
+        // Palette Memory
         return read_palette(ppu, addr % 32);
     }
 
