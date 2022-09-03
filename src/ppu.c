@@ -361,7 +361,7 @@ static void write_PPUDATA(Ppu* ppu, uint8_t value)
     memory_write(ppu->mem, ppu->v, value);
 
     if (ppu->flags & FLAG_INCREMENT)
-        ppu->v += 32u;
+        ppu->v += 32;
     else
         ppu->v += 1;
 }
@@ -449,5 +449,14 @@ const char* ppu_tostring(Ppu* ppu)
             "PPU_C:    %u\n"
             "PPU_ADDR: 0x%04x\n",
             ppu->frame, ppu->scanline, ppu->cycle, ppu->v);
+    return res;
+}
+
+const char* ppu_tostring_short(Ppu* ppu)
+{
+    static char res[32];
+    memset(res, 0, sizeof(res));
+
+    sprintf(res, "F: %u, S: %u, C: %u", ppu->frame, ppu->scanline, ppu->cycle);
     return res;
 }

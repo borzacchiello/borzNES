@@ -7,6 +7,7 @@ struct Memory;
 struct System;
 
 typedef struct Cpu {
+    struct System* sys;
     struct Memory* mem;
     uint16_t       PC; // program counter
     uint8_t        SP; // stack pointer

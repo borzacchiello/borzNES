@@ -3,6 +3,7 @@
 #include "memory.h"
 #include "logging.h"
 #include "alloc.h"
+#include "ppu.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -332,7 +333,7 @@ static void handler_adc(Cpu* cpu, HandlerData* hd)
     setZ(cpu, cpu->A);
     setN(cpu, cpu->A);
     cpu->C = ((int32_t)a + (int32_t)b + (int32_t)c > 0xFF) ? 1 : 0;
-    cpu->V = (((a ^ b) & 0x80) == 0 && ((a ^ cpu->A) & 0x80) == 0) ? 1 : 0;
+    cpu->V = (((a ^ b) & 0x80) == 0 && ((a ^ cpu->A) & 0x80) != 0) ? 1 : 0;
 }
 
 static void handler_nop(Cpu* cpu, HandlerData* hd) {}
@@ -448,13 +449,13 @@ static void handler_pla(Cpu* cpu, HandlerData* hd)
 static void handler_lsr(Cpu* cpu, HandlerData* hd)
 {
     if (hd->mode == AMODE_ACCUMULATOR) {
-        cpu->C = (cpu->A >> 7) & 1;
+        cpu->C = cpu->A & 1;
         cpu->A = cpu->A >> 1;
         setZ(cpu, cpu->A);
         setN(cpu, cpu->A);
     } else {
         uint8_t v = memory_read(cpu->mem, hd->addr);
-        cpu->C    = (v >> 7) & 1;
+        cpu->C    = v & 1;
         v         = v >> 1;
         memory_write(cpu->mem, hd->addr, v);
         setZ(cpu, v);
@@ -524,7 +525,7 @@ static void handler_sbc(Cpu* cpu, HandlerData* hd)
 
     setZ(cpu, cpu->A);
     setN(cpu, cpu->A);
-    cpu->C = ((int32_t)a - (int32_t)b - (int32_t)(1 - c) > 0) ? 1 : 0;
+    cpu->C = ((int32_t)a - (int32_t)b - (int32_t)(1 - c) >= 0) ? 1 : 0;
     cpu->V = (((a ^ b) & 0x80) != 0 && ((a ^ cpu->A) & 0x80) != 0) ? 1 : 0;
 }
 
@@ -761,6 +762,7 @@ static opcode_handler opcode_handlers[] = {
 Cpu* cpu_build(System* sys)
 {
     Cpu* cpu = calloc_or_fail(sizeof(Cpu));
+    cpu->sys = sys;
     cpu->mem = cpu_memory_build(sys);
 
     return cpu;
@@ -769,6 +771,7 @@ Cpu* cpu_build(System* sys)
 Cpu* cpu_standalone_build()
 {
     Cpu* cpu = calloc_or_fail(sizeof(Cpu));
+    cpu->sys = NULL;
     cpu->mem = standalone_memory_build();
 
     return cpu;
@@ -867,8 +870,8 @@ uint64_t cpu_step(Cpu* cpu)
             break;
         }
         case AMODE_XINDIRECT: {
-            uint16_t op = memory_read(cpu->mem, cpu->PC + 1);
-            addr        = read_16_bug(cpu->mem, op + cpu->X);
+            int8_t op = (int8_t)memory_read(cpu->mem, cpu->PC + 1);
+            addr      = read_16_bug(cpu->mem, (uint8_t)(op + (int8_t)cpu->X));
             break;
         }
         case AMODE_INDIRECTY: {
@@ -901,8 +904,8 @@ uint64_t cpu_step(Cpu* cpu)
     }
 
 #if PRINT_EXECUTED
-    // uint8_t sp_v   = memory_read(cpu->mem, cpu->SP);
-    info("%s | %s | 0x%04x", cpu_tostring_short(cpu),
+    info("%s | %s | %s\t\t0x%04x", cpu_tostring_short(cpu),
+         cpu->sys ? ppu_tostring_short(cpu->sys->ppu) : "-",
          cpu_disassemble(cpu, cpu->PC), addr);
 #endif
 

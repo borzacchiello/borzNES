@@ -181,10 +181,7 @@ static void draw_palettes(GameWindow* gw)
     int acc = 0;
     for (int i = 0; i < 8; ++i) {
         for (int j = 0; j < 4; ++j) {
-            uint16_t addr = 0x3ff1 + 4 * i + j;
-            if (j == 3)
-                addr = 0x3f00;
-
+            uint16_t addr        = 0x3F00 + (i << 2) + j;
             uint8_t  palette_val = memory_read(gw->sys->ppu->mem, addr);
             uint32_t color       = palette_colors[palette_val % 64];
             for (int x = 0; x < gw->palettes_h; ++x) {

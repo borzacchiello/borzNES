@@ -170,7 +170,7 @@ static uint8_t ppu_memory_read(void* _mem, uint16_t addr)
         return mapper_read(mem->sys->mapper, addr);
     }
     if (addr < 0x3F00) {
-        // Nametable Memory (VRAM) [ 0x2000 -> 0x2FFF ]
+        // Nametable Memory (VRAM) [ 0x2000 -> 0x3EFF ]
         return ppu->nametable_data[mirror_address(cart->mirror, addr) % 2048u];
     }
     if (addr < 0x4000) {
@@ -193,15 +193,13 @@ static void ppu_memory_write(void* _mem, uint16_t addr, uint8_t value)
         return;
     }
     if (addr < 0x3F00) {
-        info("writing to nametable 0x%04x => 0x%04x [0x%02x]", addr,
-             mirror_address(cart->mirror, addr), value);
         ppu->nametable_data[mirror_address(cart->mirror, addr) % 2048u] = value;
         return;
     }
     if (addr < 0x4000) {
         info("writing to palette 0x%04x => 0x%04x [0x%02x]", addr, addr % 32,
              value);
-        write_palette(ppu, addr % 32u, value);
+        write_palette(ppu, addr % 32, value);
         return;
     }
 
