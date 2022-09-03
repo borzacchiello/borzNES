@@ -13,7 +13,8 @@ set ( borzNES_src
     memory.c
     ppu.c
     system.c
-    ui.c )
+    window.c
+    game_window.c )
 
 set ( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address,undefined" )
 set ( CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address,undefined" )

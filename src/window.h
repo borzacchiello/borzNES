@@ -5,7 +5,7 @@
 #include <SDL2/SDL_ttf.h>
 #include <stdint.h>
 
-typedef struct {
+typedef struct Window {
     uint32_t      width;
     uint32_t      height;
     TTF_Font*     text_font;

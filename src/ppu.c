@@ -234,7 +234,7 @@ static uint8_t read_PPUDATA(Ppu* ppu)
     if (ppu->flags & FLAG_INCREMENT)
         ppu->v += 32u;
     else
-        ppu->v += 1;
+        ppu->v += 1u;
     return res;
 }
 
@@ -394,7 +394,8 @@ uint8_t ppu_read_register(Ppu* ppu, uint16_t addr)
         return read_PPUDATA(ppu);
     }
 
-    panic("ppu: invalid read address: 0x%04x", addr);
+    warning("ppu: invalid read address: 0x%04x", addr);
+    return 0;
 }
 
 void ppu_write_register(Ppu* ppu, uint16_t addr, uint8_t value)
@@ -443,9 +444,10 @@ const char* ppu_tostring(Ppu* ppu)
     memset(res, 0, sizeof(res));
 
     sprintf(res,
-            "PPU_F:  %u\n"
-            "PPU_SL: %u\n"
-            "PPU_C:  %u\n",
-            ppu->frame, ppu->scanline, ppu->cycle);
+            "PPU_F:    %u\n"
+            "PPU_SL:   %u\n"
+            "PPU_C:    %u\n"
+            "PPU_ADDR: 0x%04x\n",
+            ppu->frame, ppu->scanline, ppu->cycle, ppu->v);
     return res;
 }

@@ -31,6 +31,8 @@
 #define INT_NMI 1
 #define INT_IRQ 2
 
+#define PRINT_EXECUTED 0
+
 // addressing mode for each instruction
 static uint8_t instr_addr_mode[] = {
     6,  7,  6,  7,  11, 11, 11, 11, 6,  5,  4,  5,  1,  1,  1,  1,  10, 9,  6,
@@ -865,12 +867,12 @@ uint64_t cpu_step(Cpu* cpu)
             break;
         }
         case AMODE_XINDIRECT: {
-            uint16_t op = read_16(cpu->mem, cpu->PC + 1);
+            uint16_t op = memory_read(cpu->mem, cpu->PC + 1);
             addr        = read_16_bug(cpu->mem, op + cpu->X);
             break;
         }
         case AMODE_INDIRECTY: {
-            uint16_t op  = read_16(cpu->mem, cpu->PC + 1);
+            uint16_t op  = memory_read(cpu->mem, cpu->PC + 1);
             addr         = read_16_bug(cpu->mem, op) + cpu->Y;
             page_crossed = different_page(addr, op);
             break;
@@ -897,6 +899,12 @@ uint64_t cpu_step(Cpu* cpu)
         default:
             panic("unknown addressing mode %u", amode);
     }
+
+#if PRINT_EXECUTED
+    // uint8_t sp_v   = memory_read(cpu->mem, cpu->SP);
+    info("%s | %s | 0x%04x", cpu_tostring_short(cpu),
+         cpu_disassemble(cpu, cpu->PC), addr);
+#endif
 
     cpu->PC += instr_size[opcode];
     cpu->cycles += instr_cycle[opcode];
@@ -936,7 +944,7 @@ const char* cpu_disassemble(Cpu* cpu, uint16_t addr)
     const char* name   = instr_name[opcode];
 
     if (size == 0)
-        panic("not a valid opcode 0x%02x", opcode);
+        return "INVALID";
 
     sprintf(res, "0x%04x: %3s", addr, name);
 
@@ -1006,6 +1014,19 @@ const char* cpu_disassemble(Cpu* cpu, uint16_t addr)
     strcat(res, tmp);
 
     return (const char*)res;
+}
+
+const char* cpu_tostring_short(Cpu* cpu)
+{
+#undef STR_SIZE
+#define STR_SIZE 64
+
+    static char res[STR_SIZE];
+    memset(res, 0, STR_SIZE);
+
+    sprintf(res, "F: 0x%04x SP: 0x%04x A: 0x%02x X: 0x%02x Y: 0x%02x",
+            pack_flags(cpu), cpu->SP, cpu->A, cpu->X, cpu->Y);
+    return res;
 }
 
 const char* cpu_tostring(Cpu* cpu)

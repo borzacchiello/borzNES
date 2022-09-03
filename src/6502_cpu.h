@@ -42,5 +42,6 @@ uint16_t cpu_next_instr_address(Cpu* cpu, uint16_t addr);
 // them will invalidate old buffers
 const char* cpu_disassemble(Cpu* cpu, uint16_t addr);
 const char* cpu_tostring(Cpu* cpu);
+const char* cpu_tostring_short(Cpu* cpu);
 
 #endif

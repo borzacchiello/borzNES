@@ -1,4 +1,4 @@
-#include "ui.h"
+#include "window.h"
 #include "alloc.h"
 #include "logging.h"
 
