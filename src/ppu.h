@@ -3,11 +3,13 @@
 
 #include <stdint.h>
 
+struct GameWindow;
 struct System;
 struct Memory;
 typedef struct Ppu {
-    struct Memory* mem;
-    struct System* sys;
+    struct Memory*     mem;
+    struct System*     sys;
+    struct GameWindow* gw;
 
     uint8_t palette_data[32];
     uint8_t nametable_data[2048];
@@ -21,10 +23,11 @@ typedef struct Ppu {
     uint8_t  w; // write toggle
     uint8_t  f; // even/odd frame flag
 
-    uint8_t name_table_byte;
-    uint8_t attribute_table_byte;
-    uint8_t pattern_table_low;
-    uint8_t pattern_table_high;
+    uint8_t  name_table_byte;
+    uint8_t  attribute_table_byte;
+    uint8_t  low_tile_byte;
+    uint8_t  high_tile_byte;
+    uint64_t tile_data;
 
     uint32_t frame;
     uint16_t cycle;    // 0-340
@@ -35,9 +38,12 @@ typedef struct Ppu {
     uint8_t  buffered_ppudata;
 } Ppu;
 
+extern uint32_t palette_colors[64];
+
 Ppu* ppu_build(struct System* sys);
 void ppu_destroy(Ppu* ppu);
 
+void    ppu_set_game_window(Ppu* ppu, struct GameWindow* gw);
 void    ppu_step(Ppu* ppu);
 uint8_t ppu_read_register(Ppu* ppu, uint16_t addr);
 void    ppu_write_register(Ppu* ppu, uint16_t addr, uint8_t value);

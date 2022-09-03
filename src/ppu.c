@@ -4,6 +4,7 @@
 #include "memory.h"
 #include "alloc.h"
 #include "logging.h"
+#include "game_window.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -27,10 +28,78 @@
 #define FLAG_BLUE_TINT            (uint32_t)(1u << 17)
 #define FLAG_TRIGGER_NMI          (uint32_t)(1u << 18)
 
+uint32_t palette_colors[] = {
+    PACK_RGB(84, 84, 84),    // 0x00
+    PACK_RGB(0, 30, 116),    // 0x01
+    PACK_RGB(8, 16, 144),    // 0x02
+    PACK_RGB(48, 0, 136),    // 0x03
+    PACK_RGB(68, 0, 100),    // 0x04
+    PACK_RGB(92, 0, 48),     // 0x05
+    PACK_RGB(84, 4, 0),      // 0x06
+    PACK_RGB(60, 24, 0),     // 0x07
+    PACK_RGB(32, 42, 0),     // 0x08
+    PACK_RGB(8, 58, 0),      // 0x09
+    PACK_RGB(0, 64, 0),      // 0x0a
+    PACK_RGB(0, 60, 0),      // 0x0b
+    PACK_RGB(0, 50, 60),     // 0x0c
+    PACK_RGB(0, 0, 0),       // 0x0d
+    PACK_RGB(0, 0, 0),       // 0x0e
+    PACK_RGB(0, 0, 0),       // 0x0f
+    PACK_RGB(152, 150, 152), // 0x10
+    PACK_RGB(8, 76, 196),    // 0x11
+    PACK_RGB(48, 50, 236),   // 0x12
+    PACK_RGB(92, 30, 228),   // 0x13
+    PACK_RGB(136, 20, 176),  // 0x14
+    PACK_RGB(160, 20, 100),  // 0x15
+    PACK_RGB(152, 34, 32),   // 0x16
+    PACK_RGB(120, 60, 0),    // 0x17
+    PACK_RGB(84, 90, 0),     // 0x18
+    PACK_RGB(40, 114, 0),    // 0x19
+    PACK_RGB(8, 124, 0),     // 0x1a
+    PACK_RGB(0, 118, 40),    // 0x1b
+    PACK_RGB(0, 102, 120),   // 0x1c
+    PACK_RGB(0, 0, 0),       // 0x1d
+    PACK_RGB(0, 0, 0),       // 0x1e
+    PACK_RGB(0, 0, 0),       // 0x1f
+    PACK_RGB(236, 238, 236), // 0x20
+    PACK_RGB(76, 154, 236),  // 0x21
+    PACK_RGB(120, 124, 236), // 0x22
+    PACK_RGB(176, 98, 236),  // 0x23
+    PACK_RGB(228, 84, 236),  // 0x24
+    PACK_RGB(236, 88, 180),  // 0x25
+    PACK_RGB(236, 106, 100), // 0x26
+    PACK_RGB(212, 136, 32),  // 0x27
+    PACK_RGB(160, 170, 0),   // 0x28
+    PACK_RGB(116, 196, 0),   // 0x29
+    PACK_RGB(76, 208, 32),   // 0x2a
+    PACK_RGB(56, 204, 108),  // 0x2b
+    PACK_RGB(56, 180, 204),  // 0x2c
+    PACK_RGB(60, 60, 60),    // 0x2d
+    PACK_RGB(0, 0, 0),       // 0x2e
+    PACK_RGB(0, 0, 0),       // 0x2f
+    PACK_RGB(236, 238, 236), // 0x30
+    PACK_RGB(168, 204, 236), // 0x31
+    PACK_RGB(188, 188, 236), // 0x32
+    PACK_RGB(212, 178, 236), // 0x33
+    PACK_RGB(236, 174, 236), // 0x34
+    PACK_RGB(236, 174, 212), // 0x35
+    PACK_RGB(236, 180, 176), // 0x36
+    PACK_RGB(228, 196, 144), // 0x37
+    PACK_RGB(204, 210, 120), // 0x38
+    PACK_RGB(180, 222, 120), // 0x39
+    PACK_RGB(168, 226, 144), // 0x3a
+    PACK_RGB(152, 226, 180), // 0x3b
+    PACK_RGB(160, 214, 228), // 0x3c
+    PACK_RGB(160, 162, 160), // 0x3d
+    PACK_RGB(0, 0, 0),       // 0x3e
+    PACK_RGB(0, 0, 0),       // 0x3f
+};
+
 Ppu* ppu_build(System* sys)
 {
     Ppu* ppu = calloc_or_fail(sizeof(Ppu));
     ppu->sys = sys;
+    ppu->gw  = NULL;
     ppu->mem = ppu_memory_build(sys);
 
     ppu_reset(ppu);
@@ -42,6 +111,8 @@ void ppu_destroy(Ppu* ppu)
     memory_destroy(ppu->mem);
     free(ppu);
 }
+
+void ppu_set_game_window(Ppu* ppu, GameWindow* gw) { ppu->gw = gw; }
 
 void ppu_reset(Ppu* ppu)
 {
@@ -81,6 +152,35 @@ static void increment_y(Ppu* ppu)
         (ppu->v & ~(uint16_t)0x03E0) | (y << 5); // put coarse Y back into v
 }
 
+static void copy_x(Ppu* ppu)
+{
+    // v: .....F.. ...EDCBA = t: .....F.. ...EDCBA
+    ppu->v = (ppu->v & 0xFBE0) | (ppu->t & 0x041F);
+}
+
+static void copy_y(Ppu* ppu)
+{
+    // v: .IHGF.ED CBA..... = t: .IHGF.ED CBA.....
+    ppu->v = (ppu->v & 0x841F) | (ppu->t & 0x7BE0);
+}
+
+static void render_pixel(Ppu* ppu)
+{
+    int x = ppu->cycle - 1;
+    int y = ppu->scanline;
+
+    uint8_t bg_pixel = 0;
+    if (ppu->flags & FLAG_SHOW_BACKGROUND)
+        bg_pixel =
+            ((uint32_t)(ppu->tile_data >> 32) >> ((7 - ppu->x) * 4)) & 0x0F;
+
+    ppu->flags |= FLAG_SPRITE_HIT_ZERO;
+
+    uint8_t  color = bg_pixel;
+    uint32_t rgb   = palette_colors[memory_read(ppu->mem, 0x3F00u + color)];
+    gamewindow_set_pixel(ppu->gw, x, y, rgb);
+}
+
 static void set_vertical_blank(Ppu* ppu) { ppu->flags |= FLAG_IN_VBLANK; }
 static void clear_vertical_blank(Ppu* ppu) { ppu->flags &= ~FLAG_IN_VBLANK; }
 
@@ -100,6 +200,9 @@ static void update_cycle(Ppu* ppu)
 
 void ppu_step(Ppu* ppu)
 {
+    if (ppu->gw == NULL)
+        panic("ppu_step(): gw is NULL");
+
     if ((ppu->flags & FLAG_IN_VBLANK) && (ppu->flags & FLAG_TRIGGER_NMI)) {
         ppu->flags &= ~FLAG_TRIGGER_NMI;
         cpu_trigger_nmi(ppu->sys->cpu);
@@ -119,24 +222,59 @@ void ppu_step(Ppu* ppu)
     // BACKGROUND
     if (rendering_enabled) {
         if (render_line && fetch_cycle) {
+            ppu->tile_data <<= 4;
             switch (ppu->cycle % 8) {
-                case 0:
+                case 0: {
+                    uint32_t data = 0;
+                    for (int i = 0; i < 8; ++i) {
+                        uint8_t a  = ppu->attribute_table_byte;
+                        uint8_t p1 = (ppu->low_tile_byte & 0x80) >> 7;
+                        uint8_t p2 = (ppu->high_tile_byte & 0x80) >> 6;
+                        ppu->low_tile_byte <<= 1;
+                        ppu->high_tile_byte <<= 1;
+                        data <<= 4;
+                        data |= (uint32_t)(a | p1 | p2);
+                    }
+                    ppu->tile_data |= data;
                     break;
-                case 1:
+                }
+                case 1: {
+                    uint16_t addr        = 0x2000 | (ppu->v & 0x0FFF);
+                    ppu->name_table_byte = memory_read(ppu->mem, addr);
                     break;
-                case 3:
+                }
+                case 3: {
+                    uint16_t addr = 0x23C0 | (ppu->v & 0x0C00) |
+                                    ((ppu->v >> 4) & 0x38) |
+                                    ((ppu->v >> 2) & 0x07);
+                    uint16_t shift = ((ppu->v >> 4) & 4) | (ppu->v & 2);
+                    ppu->attribute_table_byte =
+                        ((memory_read(ppu->mem, addr) >> shift) & 3) << 2;
                     break;
-                case 5:
+                }
+                case 5: {
+                    uint16_t fine_y = (ppu->v >> 12) & 7;
+                    uint16_t addr   = ppu->name_table_byte * 16 + fine_y;
+                    if (ppu->flags & FLAG_BACKGROUND_TABLE)
+                        addr += 0x1000;
+                    ppu->low_tile_byte = memory_read(ppu->mem, addr);
                     break;
-                case 7:
+                }
+                case 7: {
+                    uint16_t fine_y = (ppu->v >> 12) & 7;
+                    uint16_t addr   = ppu->name_table_byte * 16 + fine_y;
+                    if (ppu->flags & FLAG_BACKGROUND_TABLE)
+                        addr += 0x1000;
+                    ppu->high_tile_byte = memory_read(ppu->mem, addr + 8);
                     break;
+                }
             }
         }
         if (visible_line && visible_cycle) {
-            // RENDER PIXEL
+            render_pixel(ppu);
         }
         if (pre_line && ppu->cycle >= 280u && ppu->cycle <= 304u) {
-            // COPY Y
+            copy_y(ppu);
         }
         if (render_line) {
             if (fetch_cycle && ppu->cycle % 8 == 0) {
@@ -146,7 +284,7 @@ void ppu_step(Ppu* ppu)
                 increment_y(ppu);
             }
             if (ppu->cycle == 257u) {
-                // COPY X
+                copy_x(ppu);
             }
         }
     }

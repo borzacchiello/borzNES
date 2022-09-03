@@ -52,10 +52,11 @@ int main(int argc, char const* argv[])
             }
         }
 
-        // system_step(sys);
+        system_step(sys);
 
         if (old_frame != gw->sys->ppu->frame) {
             old_frame = gw->sys->ppu->frame;
+            /*
             for (int x = 0; x < 256; ++x) {
                 for (int y = 0; y < 240; ++y) {
                     uint8_t r = (x + y + gw->sys->ppu->frame) % 256;
@@ -65,8 +66,9 @@ int main(int argc, char const* argv[])
                     gamewindow_set_pixel(gw, x, y, PACK_RGB(r, g, b));
                 }
             }
+            */
+            gamewindow_draw(gw);
         }
-        gamewindow_draw(gw);
     }
 
     gamewindow_destroy(gw);

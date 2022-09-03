@@ -9,73 +9,6 @@
 
 #include <string.h>
 
-static uint32_t palette_colors[] = {
-    PACK_RGB(84, 84, 84),    // 0x00
-    PACK_RGB(0, 30, 116),    // 0x01
-    PACK_RGB(8, 16, 144),    // 0x02
-    PACK_RGB(48, 0, 136),    // 0x03
-    PACK_RGB(68, 0, 100),    // 0x04
-    PACK_RGB(92, 0, 48),     // 0x05
-    PACK_RGB(84, 4, 0),      // 0x06
-    PACK_RGB(60, 24, 0),     // 0x07
-    PACK_RGB(32, 42, 0),     // 0x08
-    PACK_RGB(8, 58, 0),      // 0x09
-    PACK_RGB(0, 64, 0),      // 0x0a
-    PACK_RGB(0, 60, 0),      // 0x0b
-    PACK_RGB(0, 50, 60),     // 0x0c
-    PACK_RGB(0, 0, 0),       // 0x0d
-    PACK_RGB(0, 0, 0),       // 0x0e
-    PACK_RGB(0, 0, 0),       // 0x0f
-    PACK_RGB(152, 150, 152), // 0x10
-    PACK_RGB(8, 76, 196),    // 0x11
-    PACK_RGB(48, 50, 236),   // 0x12
-    PACK_RGB(92, 30, 228),   // 0x13
-    PACK_RGB(136, 20, 176),  // 0x14
-    PACK_RGB(160, 20, 100),  // 0x15
-    PACK_RGB(152, 34, 32),   // 0x16
-    PACK_RGB(120, 60, 0),    // 0x17
-    PACK_RGB(84, 90, 0),     // 0x18
-    PACK_RGB(40, 114, 0),    // 0x19
-    PACK_RGB(8, 124, 0),     // 0x1a
-    PACK_RGB(0, 118, 40),    // 0x1b
-    PACK_RGB(0, 102, 120),   // 0x1c
-    PACK_RGB(0, 0, 0),       // 0x1d
-    PACK_RGB(0, 0, 0),       // 0x1e
-    PACK_RGB(0, 0, 0),       // 0x1f
-    PACK_RGB(236, 238, 236), // 0x20
-    PACK_RGB(76, 154, 236),  // 0x21
-    PACK_RGB(120, 124, 236), // 0x22
-    PACK_RGB(176, 98, 236),  // 0x23
-    PACK_RGB(228, 84, 236),  // 0x24
-    PACK_RGB(236, 88, 180),  // 0x25
-    PACK_RGB(236, 106, 100), // 0x26
-    PACK_RGB(212, 136, 32),  // 0x27
-    PACK_RGB(160, 170, 0),   // 0x28
-    PACK_RGB(116, 196, 0),   // 0x29
-    PACK_RGB(76, 208, 32),   // 0x2a
-    PACK_RGB(56, 204, 108),  // 0x2b
-    PACK_RGB(56, 180, 204),  // 0x2c
-    PACK_RGB(60, 60, 60),    // 0x2d
-    PACK_RGB(0, 0, 0),       // 0x2e
-    PACK_RGB(0, 0, 0),       // 0x2f
-    PACK_RGB(236, 238, 236), // 0x30
-    PACK_RGB(168, 204, 236), // 0x31
-    PACK_RGB(188, 188, 236), // 0x32
-    PACK_RGB(212, 178, 236), // 0x33
-    PACK_RGB(236, 174, 236), // 0x34
-    PACK_RGB(236, 174, 212), // 0x35
-    PACK_RGB(236, 180, 176), // 0x36
-    PACK_RGB(228, 196, 144), // 0x37
-    PACK_RGB(204, 210, 120), // 0x38
-    PACK_RGB(180, 222, 120), // 0x39
-    PACK_RGB(168, 226, 144), // 0x3a
-    PACK_RGB(152, 226, 180), // 0x3b
-    PACK_RGB(160, 214, 228), // 0x3c
-    PACK_RGB(160, 162, 160), // 0x3d
-    PACK_RGB(0, 0, 0),       // 0x3e
-    PACK_RGB(0, 0, 0),       // 0x3f
-};
-
 GameWindow* gamewindow_build(System* sys)
 {
     GameWindow* gw = malloc_or_fail(sizeof(GameWindow));
@@ -116,6 +49,8 @@ GameWindow* gamewindow_build(System* sys)
         0, 128, 128, 32, 0xFF000000, 0x00FF0000, 0x0000FF00, 0x000000FF);
     gw->patterntab2_surface = SDL_CreateRGBSurface(
         0, 128, 128, 32, 0xFF000000, 0x00FF0000, 0x0000FF00, 0x000000FF);
+
+    ppu_set_game_window(sys->ppu, gw);
     return gw;
 }
 
