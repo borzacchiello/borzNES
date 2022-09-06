@@ -32,7 +32,7 @@ int main(int argc, char const* argv[])
     int       old_frame = 0;
     SDL_Event e;
     while (1) {
-        if (window_poll_event(&e)) {
+        if (sys->ppu->frame % 15 == 0 && window_poll_event(&e)) {
             if (e.type == SDL_QUIT) {
                 break;
             } else if (e.type == SDL_KEYDOWN) {

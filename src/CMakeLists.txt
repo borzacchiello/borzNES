@@ -2,6 +2,8 @@ cmake_minimum_required ( VERSION 3.19 )
 
 project ( borzNES )
 
+option ( ASAN "Compile with asan (only for debug builds)" OFF )
+
 set ( CMAKE_C_STANDARD 17 )
 
 set ( borzNES_src
@@ -16,8 +18,10 @@ set ( borzNES_src
     window.c
     game_window.c )
 
-set ( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address,undefined" )
-set ( CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address,undefined" )
+if ( ASAN )
+    set ( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address,undefined" )
+    set ( CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address,undefined" )
+endif ()
 
 add_executable ( main
     ${borzNES_src}

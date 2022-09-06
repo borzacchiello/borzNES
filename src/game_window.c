@@ -9,6 +9,9 @@
 
 #include <string.h>
 
+#define SHOW_CPU_INFO 0
+#define SHOW_PPU_INFO 1
+
 GameWindow* gamewindow_build(System* sys)
 {
     GameWindow* gw = malloc_or_fail(sizeof(GameWindow));
@@ -180,8 +183,40 @@ void gamewindow_draw(GameWindow* gw)
 {
     window_prepare_redraw(gw->win);
 
-    draw_palettes(gw);
-    draw_patterntables(gw, 0);
+    static int draw_context_counter = 0;
+    if (++draw_context_counter == 16) {
+        draw_context_counter = 0;
+        draw_palettes(gw);
+        draw_patterntables(gw, 0);
+    }
+
+#if SHOW_CPU_INFO
+    // Draw CPU and PPU info
+    for (int32_t i = -2; i < 3; ++i) {
+        int32_t addr = (int32_t)gw->sys->cpu->PC;
+        addr += i;
+        if (addr >= 0) {
+            static char disas[64];
+            memset(disas, 0, sizeof(disas));
+
+            if (i == 0)
+                strcpy(disas, ">");
+            else
+                strcpy(disas, " ");
+            strcat(disas, cpu_disassemble(gw->sys->cpu, (uint16_t)addr));
+
+            window_draw_text(gw->win, i + 4, gw->text_col_off - 1, color_white,
+                             disas);
+        }
+    }
+
+    window_draw_text(gw->win, 8, gw->text_col_off, color_white,
+                     cpu_tostring(gw->sys->cpu));
+#endif
+#if SHOW_PPU_INFO
+    window_draw_text(gw->win, 15, gw->text_col_off, color_white,
+                     ppu_tostring(gw->sys->ppu));
+#endif
 
     SDL_Texture* gamewin_texture = SDL_CreateTextureFromSurface(
         gw->win->sdl_renderer, gw->gamewin_surface);
@@ -221,30 +256,6 @@ void gamewindow_draw(GameWindow* gw)
     SDL_RenderCopy(gw->win->sdl_renderer, patterntab2_texture, NULL,
                    &patterntab2_rect);
     SDL_DestroyTexture(patterntab2_texture);
-
-    // Draw CPU and PPU info
-    for (int32_t i = -2; i < 3; ++i) {
-        int32_t addr = (int32_t)gw->sys->cpu->PC;
-        addr += i;
-        if (addr >= 0) {
-            static char disas[64];
-            memset(disas, 0, sizeof(disas));
-
-            if (i == 0)
-                strcpy(disas, ">");
-            else
-                strcpy(disas, " ");
-            strcat(disas, cpu_disassemble(gw->sys->cpu, (uint16_t)addr));
-
-            window_draw_text(gw->win, i + 4, gw->text_col_off - 1, color_white,
-                             disas);
-        }
-    }
-
-    window_draw_text(gw->win, 8, gw->text_col_off, color_white,
-                     cpu_tostring(gw->sys->cpu));
-    window_draw_text(gw->win, 15, gw->text_col_off, color_white,
-                     ppu_tostring(gw->sys->ppu));
 
     window_present(gw->win);
 }
