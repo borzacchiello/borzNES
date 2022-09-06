@@ -33,6 +33,9 @@ typedef struct Ppu {
     uint16_t cycle;    // 0-340
     uint16_t scanline; // 0-261
 
+    int32_t nmi_prev;
+    int32_t nmi_delay;
+
     uint32_t flags;
     uint8_t  bus_content;
     uint8_t  buffered_ppudata;

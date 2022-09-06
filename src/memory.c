@@ -138,10 +138,10 @@ static uint16_t mirror_address(uint8_t mirror_type, uint16_t addr)
 {
     assert(mirror_type >= 0 && mirror_type <= 2);
 
-    addr         = (addr - 0x2000u) % 0x1000u;
-    uint16_t tab = addr / 0x400u;
-    uint16_t off = addr % 0x400u;
-    return 0x2000u + ppu_mirror_tab[mirror_type][tab] * 0x400u + off;
+    addr         = (addr - 0x2000) % 0x1000;
+    uint16_t tab = addr / 0x400;
+    uint16_t off = addr % 0x400;
+    return 0x2000 + ppu_mirror_tab[mirror_type][tab] * 0x400 + off;
 }
 
 static uint8_t read_palette(Ppu* ppu, uint16_t addr)
@@ -197,8 +197,6 @@ static void ppu_memory_write(void* _mem, uint16_t addr, uint8_t value)
         return;
     }
     if (addr < 0x4000) {
-        info("writing to palette 0x%04x => 0x%04x [0x%02x]", addr, addr % 32,
-             value);
         write_palette(ppu, addr % 32, value);
         return;
     }

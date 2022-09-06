@@ -877,7 +877,7 @@ uint64_t cpu_step(Cpu* cpu)
         case AMODE_INDIRECTY: {
             uint16_t op  = memory_read(cpu->mem, cpu->PC + 1);
             addr         = read_16_bug(cpu->mem, op) + cpu->Y;
-            page_crossed = different_page(addr, op);
+            page_crossed = different_page(addr - cpu->Y, addr);
             break;
         }
         case AMODE_RELATIVE: {
@@ -1027,8 +1027,9 @@ const char* cpu_tostring_short(Cpu* cpu)
     static char res[STR_SIZE];
     memset(res, 0, STR_SIZE);
 
-    sprintf(res, "F: 0x%04x SP: 0x%04x A: 0x%02x X: 0x%02x Y: 0x%02x",
-            pack_flags(cpu), cpu->SP, cpu->A, cpu->X, cpu->Y);
+    sprintf(res, "F: 0x%04x SP: 0x%04x A: 0x%02x X: 0x%02x Y: 0x%02x CYC: %lu",
+            pack_flags(cpu), cpu->SP, cpu->A, cpu->X, cpu->Y,
+            (cpu->cycles * 3) % 341);
     return res;
 }
 

@@ -9,7 +9,7 @@
 
 System* system_build(const char* rom_path)
 {
-    System* sys = malloc_or_fail(sizeof(System));
+    System* sys = calloc_or_fail(sizeof(System));
 
     Cartridge* cart = cartridge_load(rom_path);
     Mapper*    map  = mapper_build(cart);
