@@ -175,13 +175,15 @@ static void updated_nmi(Ppu* ppu)
 static void copy_x(Ppu* ppu)
 {
     // v: .....F.. ...EDCBA = t: .....F.. ...EDCBA
-    ppu->v = (ppu->v & 0xFBE0) | (ppu->t & 0x041F);
+    ppu->v = (ppu->v & (uint16_t)0b1111101111100000);
+    ppu->v |= (ppu->t & (uint16_t)0b0000010000011111);
 }
 
 static void copy_y(Ppu* ppu)
 {
     // v: .IHGF.ED CBA..... = t: .IHGF.ED CBA.....
-    ppu->v = (ppu->v & 0x841F) | (ppu->t & 0x7BE0);
+    ppu->v = (ppu->v & (uint16_t)0b100010000011111);
+    ppu->v |= (ppu->t & (uint16_t)0b011101111100000);
 }
 
 static void render_pixel(Ppu* ppu)
@@ -471,6 +473,7 @@ static void write_PPUCTRL(Ppu* ppu, uint8_t value)
     updated_nmi(ppu);
 
     // t: ....BA.. ........ = d: ......BA
+    ppu->t &= (uint16_t)0x03 << 10;
     ppu->t |= ((uint16_t)value & 0x03u) << 10;
 }
 
@@ -547,6 +550,7 @@ static void write_PPUSCROLL(Ppu* ppu, uint8_t value)
         // w:                   = 1
         ppu->t &= (uint16_t)0b1111111111100000;
         ppu->t |= ((uint16_t)value >> 3) & 0x1F;
+        ppu->x &= 0x07;
         ppu->x |= value & 0x07;
         ppu->w = 1;
     }
@@ -673,8 +677,10 @@ const char* ppu_tostring_short(Ppu* ppu)
     static char res[64];
     memset(res, 0, sizeof(res));
 
-    sprintf(res, "PPU: SL=%03u CYC=%03u DL=%02d PREV_NMI=%d NMI_OUT=%d V=%04x",
-            ppu->scanline, ppu->cycle, ppu->nmi_delay, ppu->nmi_prev,
-            (ppu->flags & FLAG_TRIGGER_NMI) ? 1 : 0, ppu->v);
+    sprintf(
+        res,
+        "PPU: SL=%03u CYC=%03u DL=%02d PREV_NMI=%d NMI_OUT=%d V=%04x T=%04x",
+        ppu->scanline, ppu->cycle, ppu->nmi_delay, ppu->nmi_prev,
+        (ppu->flags & FLAG_TRIGGER_NMI) ? 1 : 0, ppu->v, ppu->t);
     return res;
 }
