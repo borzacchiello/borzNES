@@ -171,7 +171,7 @@ static uint8_t ppu_memory_read(void* _mem, uint16_t addr)
     }
     if (addr < 0x3F00) {
         // Nametable Memory (VRAM) [ 0x2000 -> 0x3EFF ]
-        return ppu->nametable_data[mirror_address(cart->mirror, addr) % 2048u];
+        return ppu->nametable_data[mirror_address(cart->mirror, addr) % 2048];
     }
     if (addr < 0x4000) {
         // Palette Memory

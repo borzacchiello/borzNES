@@ -9,7 +9,7 @@
 
 #include <string.h>
 
-#define SHOW_CPU_INFO 0
+#define SHOW_CPU_INFO 1
 #define SHOW_PPU_INFO 1
 
 GameWindow* gamewindow_build(System* sys)

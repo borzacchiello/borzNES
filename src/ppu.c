@@ -133,30 +133,30 @@ void ppu_reset(Ppu* ppu)
 
 static void increment_x(Ppu* ppu)
 {
-    if ((ppu->v & (uint16_t)0x001F) == 31u) { // if coarse X == 31
-        ppu->v &= ~(uint16_t)0x001F;          // coarse X = 0
-        ppu->v ^= (uint16_t)0x0400;           // switch horizontal nametable
+    if ((ppu->v & (uint16_t)0x001F) == 31) { // if coarse X == 31
+        ppu->v &= ~(uint16_t)0x001F;         // coarse X = 0
+        ppu->v ^= (uint16_t)0x0400;          // switch horizontal nametable
     } else {
-        ppu->v += 1u; // increment coarse X
+        ppu->v += 1; // increment coarse X
     }
 }
 
 static void increment_y(Ppu* ppu)
 {
     if ((ppu->v & (uint16_t)0x7000u) != (uint16_t)0x7000) { // if fine Y < 7
-        ppu->v += 0x1000u;                                  // increment fine Y
+        ppu->v += 0x1000;                                   // increment fine Y
         return;
     }
 
     ppu->v &= ~(uint16_t)0x7000;                   // fine Y = 0
     uint16_t y = (ppu->v & (uint16_t)0x03E0) >> 5; // let y = coarse Y
-    if (y == 29u) {
-        y = 0u;                     // coarse Y = 0
+    if (y == 29) {
+        y = 0;                      // coarse Y = 0
         ppu->v ^= (uint16_t)0x0800; // switch vertical nametable
-    } else if (y == 31u) {
-        y = 0u; // coarse Y = 0, nametable not switched
+    } else if (y == 31) {
+        y = 0; // coarse Y = 0, nametable not switched
     } else {
-        y += 1u; // increment coarse Y
+        y += 1; // increment coarse Y
     }
     ppu->v =
         (ppu->v & ~(uint16_t)0x03E0) | (y << 5); // put coarse Y back into v
@@ -473,8 +473,8 @@ static void write_PPUCTRL(Ppu* ppu, uint8_t value)
     updated_nmi(ppu);
 
     // t: ....BA.. ........ = d: ......BA
-    ppu->t &= (uint16_t)0x03 << 10;
-    ppu->t |= ((uint16_t)value & 0x03u) << 10;
+    ppu->t &= (uint16_t)0b1111001111111111;
+    ppu->t |= ((uint16_t)value & (uint16_t)0b11) << 10;
 }
 
 static void write_PPUMASK(Ppu* ppu, uint8_t value)
@@ -540,18 +540,15 @@ static void write_PPUSCROLL(Ppu* ppu, uint8_t value)
     if (ppu->w) {
         // t: .CBA..HG FED..... = d: HGFEDCBA
         // w:                   = 0
-        ppu->t &= (uint16_t)0b0111001111100000;
-        ppu->t |= ((uint16_t)value & 0x07u) << 12;
-        ppu->t |= ((uint16_t)value & 0xF8u) << 2;
+        ppu->t = (ppu->t & 0x8FFF) | (((uint16_t)value & 0x07) << 12);
+        ppu->t = (ppu->t & 0xFC1F) | (((uint16_t)value & 0xF8) << 2);
         ppu->w = 0;
     } else {
         // t: ........ ...HGFED = d: HGFED...
         // x:               CBA = d: .....CBA
         // w:                   = 1
-        ppu->t &= (uint16_t)0b1111111111100000;
-        ppu->t |= ((uint16_t)value >> 3) & 0x1F;
-        ppu->x &= 0x07;
-        ppu->x |= value & 0x07;
+        ppu->t = (ppu->t & 0xFFE0) | ((uint16_t)value >> 3);
+        ppu->x = value & 0x07;
         ppu->w = 1;
     }
 }
