@@ -209,6 +209,9 @@ static void render_pixel(Ppu* ppu)
             off = 7 - off;
 
             uint8_t pixel = (ppu->sprite_patterns[i] >> (off * 4)) & 0x0F;
+            if (IS_PIXEL_TRANSPARENT(pixel))
+                continue;
+
             sprite_pixel  = pixel;
             sprite_id     = i;
             break;
