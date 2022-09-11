@@ -72,16 +72,6 @@ typedef struct MMC1 {
     int32_t    chr_offsets[2];
 } MMC1;
 
-static MMC1* MMC1_build(Cartridge* cart)
-{
-    MMC1* map = calloc_or_fail(sizeof(MMC1));
-    map->cart = cart;
-
-    return map;
-}
-
-static void MMC1_destroy(void* _map) { free(_map); }
-
 static int32_t MMC1_calc_prg_bank_offset(MMC1* map, int32_t idx)
 {
     if (idx >= 0x80)
@@ -105,6 +95,18 @@ static int32_t MMC1_calc_chr_bank_offset(MMC1* map, int32_t idx)
         off += map->cart->CHR_size;
     return off;
 }
+
+static MMC1* MMC1_build(Cartridge* cart)
+{
+    MMC1* map           = calloc_or_fail(sizeof(MMC1));
+    map->cart           = cart;
+    map->shift_reg      = 0x10;
+    map->prg_offsets[1] = MMC1_calc_prg_bank_offset(map, -1);
+
+    return map;
+}
+
+static void MMC1_destroy(void* _map) { free(_map); }
 
 static void MMC1_update_offsets(MMC1* map)
 {
@@ -131,7 +133,7 @@ static void MMC1_update_offsets(MMC1* map)
             break;
         case 3:
             map->prg_offsets[0] = MMC1_calc_prg_bank_offset(map, map->prg_bank);
-            map->prg_offsets[1] = 0;
+            map->prg_offsets[1] = MMC1_calc_prg_bank_offset(map, -1);
             break;
         default:
             panic("MMC1_update_offsets(): unexpected prg_mode %u",
@@ -204,7 +206,7 @@ static void MMC1_load_reg(MMC1* map, uint16_t addr, uint8_t value)
         map->shift_reg >>= 1;
         map->shift_reg |= (value & 1) << 4;
         if (load_complete) {
-            MMC1_write_register(map, addr, value);
+            MMC1_write_register(map, addr, map->shift_reg);
             map->shift_reg = 0x10;
         }
     }
