@@ -8,17 +8,6 @@
 #include <stdio.h>
 #include <unistd.h>
 
-static Window* mk_game_window()
-{
-    int gameview_width  = 256;
-    int gameview_heigth = 240;
-
-    Window* win = window_build(gameview_width * 3 +
-                                   gameview_width * 2 /* some room for text */,
-                               gameview_heigth * 3);
-    return win;
-}
-
 int main(int argc, char const* argv[])
 {
     if (argc < 2)
@@ -29,44 +18,81 @@ int main(int argc, char const* argv[])
 
     gamewindow_draw(gw);
 
-    int       old_frame = 0;
+    int             should_quit = 0;
+    int             old_frame   = 0;
+    ControllerState p1, p2;
+    p1.state = 0;
+    p2.state = 0;
     SDL_Event e;
-    while (1) {
+    while (!should_quit) {
         if (sys->ppu->frame % 15 == 0 && window_poll_event(&e)) {
             if (e.type == SDL_QUIT) {
                 break;
             } else if (e.type == SDL_KEYDOWN) {
-                if (e.key.keysym.sym == SDLK_SPACE) {
-                    system_step(sys);
-                } else if (e.key.keysym.sym == SDLK_s) {
-                    int sl = sys->ppu->scanline;
-                    while (sys->ppu->scanline == sl)
-                        system_step(sys);
-                } else if (e.key.keysym.sym == SDLK_f) {
-                    int f = sys->ppu->frame;
-                    while (sys->ppu->frame == f)
-                        system_step(sys);
-                } else if (e.key.keysym.sym == SDLK_q) {
-                    break;
+                switch (e.key.keysym.sym) {
+                    case SDLK_q:
+                        should_quit = 1;
+                        break;
+                    case SDLK_z:
+                        p1.A = 1;
+                        break;
+                    case SDLK_x:
+                        p1.B = 1;
+                        break;
+                    case SDLK_RSHIFT:
+                        p1.START = 1;
+                        break;
+                    case SDLK_RETURN:
+                        p1.SELECT = 1;
+                        break;
+                    case SDLK_UP:
+                        p1.UP = 1;
+                        break;
+                    case SDLK_DOWN:
+                        p1.DOWN = 1;
+                        break;
+                    case SDLK_LEFT:
+                        p1.LEFT = 1;
+                        break;
+                    case SDLK_RIGHT:
+                        p1.RIGHT = 1;
+                        break;
+                }
+            } else if (e.type == SDL_KEYUP) {
+                switch (e.key.keysym.sym) {
+                    case SDLK_z:
+                        p1.A = 0;
+                        break;
+                    case SDLK_x:
+                        p1.B = 0;
+                        break;
+                    case SDLK_RSHIFT:
+                        p1.START = 0;
+                        break;
+                    case SDLK_RETURN:
+                        p1.SELECT = 0;
+                        break;
+                    case SDLK_UP:
+                        p1.UP = 0;
+                        break;
+                    case SDLK_DOWN:
+                        p1.DOWN = 0;
+                        break;
+                    case SDLK_LEFT:
+                        p1.LEFT = 0;
+                        break;
+                    case SDLK_RIGHT:
+                        p1.RIGHT = 0;
+                        break;
                 }
             }
+            system_update_controller(sys, P1, p1);
+            system_update_controller(sys, P2, p2);
         }
 
         system_step(sys);
-
         if (old_frame != gw->sys->ppu->frame) {
             old_frame = gw->sys->ppu->frame;
-            /*
-            for (int x = 0; x < 256; ++x) {
-                for (int y = 0; y < 240; ++y) {
-                    uint8_t r = (x + y + gw->sys->ppu->frame) % 256;
-                    uint8_t g = (x * y + gw->sys->ppu->frame) % 256;
-                    uint8_t b = 256 - (x + y + gw->sys->ppu->frame) % 256;
-
-                    gamewindow_set_pixel(gw, x, y, PACK_RGB(r, g, b));
-                }
-            }
-            */
             gamewindow_draw(gw);
         }
     }

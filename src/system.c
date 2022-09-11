@@ -46,6 +46,25 @@ uint64_t system_step(System* sys)
     return cpu_cycles;
 }
 
+void system_update_controller(System* sys, ControllerNum num,
+                              ControllerState state)
+{
+    sys->controller_state[num] = state;
+}
+
+void system_load_controllers(System* sys)
+{
+    sys->controller_shift_reg[0] = sys->controller_state[0].state;
+    sys->controller_shift_reg[1] = sys->controller_state[1].state;
+}
+
+uint8_t system_get_controller_val(System* sys, ControllerNum num)
+{
+    uint8_t res = sys->controller_shift_reg[num] & 1;
+    sys->controller_shift_reg[num] >>= 1;
+    return res;
+}
+
 const char* system_tostring(System* sys)
 {
     static char res[512];

@@ -63,12 +63,10 @@ static uint8_t cpu_memory_read(void* _mem, uint16_t addr)
         return 0;
     }
     if (addr == 0x4016) {
-        warning("0x%04x: Controller read not currently supported", addr);
-        return 0;
+        return system_get_controller_val(mem->sys, P1);
     }
     if (addr == 0x4017) {
-        warning("0x%04x: Controller read not currently supported", addr);
-        return 0;
+        return system_get_controller_val(mem->sys, P2);
     }
     if (addr < 0x6000) {
         warning("0x%04x: I/O read not currently supported", addr);
@@ -109,8 +107,8 @@ static void cpu_memory_write(void* _mem, uint16_t addr, uint8_t value)
         return;
     }
     if (addr == 0x4016) {
-        warning("0x%04x [0x%02x]: Controller write not currently supported",
-                addr, value);
+        if (value & 1)
+            system_load_controllers(mem->sys);
         return;
     }
     if (addr == 0x4017) {
