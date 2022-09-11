@@ -805,7 +805,7 @@ const char* ppu_tostring(Ppu* ppu)
 
 const char* ppu_tostring_short(Ppu* ppu)
 {
-    static char res[64];
+    static char res[128];
     memset(res, 0, sizeof(res));
 
     sprintf(
