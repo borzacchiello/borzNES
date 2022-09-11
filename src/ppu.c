@@ -6,10 +6,13 @@
 #include "logging.h"
 #include "game_window.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
 #define PRINT_PPU_STATE 0
+
+#define IS_PIXEL_TRANSPARENT(p) ((p) % 4 == 0)
 
 #define MASK_NAME_TABLE           (uint32_t)(3u)
 #define FLAG_SPRITE_OVERFLOW      (uint32_t)(1u << 2)
@@ -196,10 +199,47 @@ static void render_pixel(Ppu* ppu)
         bg_pixel =
             ((uint32_t)(ppu->tile_data >> 32) >> ((7 - ppu->x) * 4)) & 0x0F;
 
-    ppu->flags |= FLAG_SPRITE_HIT_ZERO;
+    uint8_t sprite_id    = 0;
+    uint8_t sprite_pixel = 0;
+    if (ppu->flags & FLAG_SHOW_SPRITES) {
+        for (uint8_t i = 0; i < ppu->sprite_count; ++i) {
+            int off = ((int)ppu->cycle - 1) - ppu->sprite_positions[i];
+            if (off < 0 || off > 7)
+                continue;
+            off = 7 - off;
 
-    uint8_t  color = bg_pixel;
-    uint32_t rgb   = palette_colors[memory_read(ppu->mem, 0x3F00u + color)];
+            uint8_t pixel = (ppu->sprite_patterns[i] >> (off * 4)) & 0x0F;
+            sprite_pixel  = pixel;
+            sprite_id     = i;
+            break;
+        }
+    }
+
+    if (x < 8 && !(ppu->flags & FLAG_SHOW_LEFT_BACKGROUND))
+        bg_pixel = 0;
+    if (x < 8 && !(ppu->flags & FLAG_SHOW_LEFT_SPRITES))
+        sprite_pixel = 0;
+
+    uint8_t color;
+    if (IS_PIXEL_TRANSPARENT(bg_pixel) && IS_PIXEL_TRANSPARENT(sprite_pixel)) {
+        color = 0;
+    } else if (IS_PIXEL_TRANSPARENT(bg_pixel) &&
+               !IS_PIXEL_TRANSPARENT(sprite_pixel)) {
+        color = sprite_pixel | 0x10;
+    } else if (!IS_PIXEL_TRANSPARENT(bg_pixel) &&
+               IS_PIXEL_TRANSPARENT(sprite_pixel)) {
+        color = bg_pixel;
+    } else {
+        if (ppu->sprite_indexes[sprite_id] == 0 && x < 255)
+            ppu->flags |= FLAG_SPRITE_HIT_ZERO;
+
+        if (ppu->sprite_priorities[sprite_id] == 0)
+            color = sprite_pixel | 0x10;
+        else
+            color = bg_pixel;
+    }
+
+    uint32_t rgb = palette_colors[memory_read(ppu->mem, 0x3F00u + color)];
     gamewindow_set_pixel(ppu->gw, x, y, rgb);
 }
 
@@ -208,10 +248,63 @@ static void set_vertical_blank(Ppu* ppu)
     ppu->flags |= FLAG_IN_VBLANK;
     updated_nmi(ppu);
 }
+
 static void clear_vertical_blank(Ppu* ppu)
 {
     ppu->flags &= ~FLAG_IN_VBLANK;
     updated_nmi(ppu);
+}
+
+static uint8_t fetch_sprite_pattern(Ppu* ppu, uint8_t sprite_id, uint8_t row)
+{
+    uint8_t tile       = ppu->oam_data[sprite_id * 4 + 1];
+    uint8_t attributes = ppu->oam_data[sprite_id * 4 + 2];
+
+    uint16_t addr;
+    if (ppu->flags & FLAG_SPRITE_SIZE) {
+        assert(row < 16 && "fetch_sprite_pattern(): invalid row");
+
+        if (attributes & 0x80)
+            row = 15 - row;
+
+        uint8_t table = tile & 1;
+        tile &= 0xFE;
+        if (row > 7) {
+            tile += 1;
+            row -= 8;
+        }
+        addr = (uint16_t)0x1000 * table + tile * 16 + row;
+    } else {
+        assert(row < 8 && "fetch_sprite_pattern(): invalid row");
+
+        if (attributes & 0x80)
+            row = 7 - row;
+        uint8_t table = ppu->flags & FLAG_SPRITE_TABLE ? 1 : 0;
+        addr = (uint16_t)0x1000 * table + (uint16_t)tile * 16 + (uint16_t)row;
+    }
+
+    uint8_t a              = (attributes & 3) << 2;
+    uint8_t low_tile_byte  = memory_read(ppu->mem, addr);
+    uint8_t high_tile_byte = memory_read(ppu->mem, addr + 8);
+
+    uint32_t data = 0;
+    for (uint8_t i = 0; i < 8; ++i) {
+        uint8_t p1, p2;
+        if (attributes & 0x40) {
+            p1 = (low_tile_byte & 1);
+            p2 = (high_tile_byte & 1) << 1;
+            low_tile_byte >>= 1;
+            high_tile_byte >>= 1;
+        } else {
+            p1 = (low_tile_byte & 0x80) >> 7;
+            p2 = (high_tile_byte & 0x80) >> 6;
+            low_tile_byte <<= 1;
+            high_tile_byte <<= 1;
+        }
+        data <<= 4;
+        data |= (uint32_t)(a | p1 | p2);
+    }
+    return data;
 }
 
 static void update_cycle(Ppu* ppu)
@@ -277,7 +370,7 @@ void ppu_step(Ppu* ppu)
             switch (ppu->cycle % 8) {
                 case 0: {
                     uint32_t data = 0;
-                    for (int i = 0; i < 8; ++i) {
+                    for (uint8_t i = 0; i < 8; ++i) {
                         uint8_t a  = ppu->attribute_table_byte;
                         uint8_t p1 = (ppu->low_tile_byte & 0x80) >> 7;
                         uint8_t p2 = (ppu->high_tile_byte & 0x80) >> 6;
@@ -333,6 +426,43 @@ void ppu_step(Ppu* ppu)
             }
             if (ppu->cycle == 257) {
                 copy_x(ppu);
+            }
+        }
+    }
+
+    // SPRITE
+    if (rendering_enabled) {
+        if (ppu->cycle == 257) {
+            if (visible_line) {
+                int32_t h = 8;
+                if (ppu->flags & FLAG_SPRITE_SIZE)
+                    h = 16;
+
+                int32_t count = 0;
+                for (uint8_t i = 0; i < 64; ++i) {
+                    uint8_t y   = ppu->oam_data[i * 4];
+                    uint8_t a   = ppu->oam_data[i * 4 + 2];
+                    uint8_t x   = ppu->oam_data[i * 4 + 3];
+                    int32_t row = (int32_t)ppu->scanline - (int32_t)y;
+                    if (row < 0 || row >= h)
+                        continue;
+                    if (count < 8) {
+                        ppu->sprite_patterns[count] =
+                            fetch_sprite_pattern(ppu, i, (uint8_t)row);
+                        ppu->sprite_positions[count]  = x;
+                        ppu->sprite_priorities[count] = (a >> 5) & 1;
+                        ppu->sprite_indexes[count]    = i;
+                    }
+                    count += 1;
+                }
+                if (count > 8) {
+                    count = 8;
+                    ppu->flags |= FLAG_SPRITE_OVERFLOW;
+                }
+                ppu->sprite_count = count;
+
+            } else {
+                ppu->sprite_count = 0;
             }
         }
     }

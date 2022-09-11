@@ -33,6 +33,12 @@ typedef struct Ppu {
     uint16_t cycle;    // 0-340
     uint16_t scanline; // 0-261
 
+    uint8_t  sprite_count;
+    uint32_t sprite_patterns[8];
+    uint8_t  sprite_positions[8];
+    uint8_t  sprite_priorities[8];
+    uint8_t  sprite_indexes[8];
+
     int32_t nmi_prev;
     int32_t nmi_delay;
 

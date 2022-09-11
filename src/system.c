@@ -31,6 +31,7 @@ void system_destroy(System* sys)
     cartridge_unload(sys->cart);
     mapper_destroy(sys->mapper);
     cpu_destroy(sys->cpu);
+    ppu_destroy(sys->ppu);
     free(sys);
 }
 
