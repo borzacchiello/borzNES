@@ -39,10 +39,10 @@ int main(int argc, char const* argv[])
                     case SDLK_x:
                         p1.B = 1;
                         break;
-                    case SDLK_RSHIFT:
+                    case SDLK_RETURN:
                         p1.START = 1;
                         break;
-                    case SDLK_RETURN:
+                    case SDLK_RSHIFT:
                         p1.SELECT = 1;
                         break;
                     case SDLK_UP:
@@ -66,10 +66,10 @@ int main(int argc, char const* argv[])
                     case SDLK_x:
                         p1.B = 0;
                         break;
-                    case SDLK_RSHIFT:
+                    case SDLK_RETURN:
                         p1.START = 0;
                         break;
-                    case SDLK_RETURN:
+                    case SDLK_RSHIFT:
                         p1.SELECT = 0;
                         break;
                     case SDLK_UP:
