@@ -7,6 +7,8 @@
 
 #include <stdio.h>
 
+#define CPU_FREQ 1789773l
+
 System* system_build(const char* rom_path)
 {
     System* sys = calloc_or_fail(sizeof(System));
@@ -44,6 +46,13 @@ uint64_t system_step(System* sys)
         ppu_step(sys->ppu);
     }
     return cpu_cycles;
+}
+
+void system_step_ms(System* sys, int64_t delta_time_ms)
+{
+    int64_t cycles = (int64_t)(CPU_FREQ / 1000l * delta_time_ms);
+    while (cycles > 0)
+        cycles -= system_step(sys);
 }
 
 void system_update_controller(System* sys, ControllerNum num,

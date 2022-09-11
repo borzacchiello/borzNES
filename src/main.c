@@ -7,6 +7,15 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <sys/time.h>
+
+static long get_timestamp_milliseconds()
+{
+    struct timeval te;
+    gettimeofday(&te, NULL);
+
+    return te.tv_sec * 1000LL + te.tv_usec / 1000;
+}
 
 int main(int argc, char const* argv[])
 {
@@ -18,14 +27,17 @@ int main(int argc, char const* argv[])
 
     gamewindow_draw(gw);
 
+    long            start;
     int             should_quit = 0;
     int             old_frame   = 0;
     ControllerState p1, p2;
     p1.state = 0;
     p2.state = 0;
+
     SDL_Event e;
     while (!should_quit) {
-        if (sys->ppu->frame % 15 == 0 && window_poll_event(&e)) {
+        start = get_timestamp_milliseconds();
+        if (window_poll_event(&e)) {
             if (e.type == SDL_QUIT) {
                 break;
             } else if (e.type == SDL_KEYDOWN) {
@@ -90,7 +102,7 @@ int main(int argc, char const* argv[])
             system_update_controller(sys, P2, p2);
         }
 
-        system_step(sys);
+        system_step_ms(sys, get_timestamp_milliseconds() - start);
         if (old_frame != gw->sys->ppu->frame) {
             old_frame = gw->sys->ppu->frame;
             gamewindow_draw(gw);

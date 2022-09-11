@@ -42,6 +42,7 @@ System* system_build(const char* rom_path);
 void    system_destroy(System* sys);
 
 uint64_t system_step(System* sys);
+void     system_step_ms(System* sys, int64_t delta_time);
 
 void    system_update_controller(System* sys, ControllerNum num,
                                  ControllerState state);
