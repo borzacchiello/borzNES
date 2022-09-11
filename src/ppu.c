@@ -255,7 +255,7 @@ static void clear_vertical_blank(Ppu* ppu)
     updated_nmi(ppu);
 }
 
-static uint8_t fetch_sprite_pattern(Ppu* ppu, uint8_t sprite_id, uint8_t row)
+static uint32_t fetch_sprite_pattern(Ppu* ppu, uint8_t sprite_id, uint8_t row)
 {
     uint8_t tile       = ppu->oam_data[sprite_id * 4 + 1];
     uint8_t attributes = ppu->oam_data[sprite_id * 4 + 2];
@@ -360,11 +360,15 @@ void ppu_step(Ppu* ppu)
     int visible_cycle   = ppu->cycle >= 1 && ppu->cycle <= 256;
     int fetch_cycle     = pre_fetch_cycle || visible_cycle;
 
-    // BACKGROUND
+    // RENDERING
     if (rendering_enabled) {
         if (visible_line && visible_cycle) {
             render_pixel(ppu);
         }
+    }
+
+    // BACKGROUND
+    if (rendering_enabled) {
         if (render_line && fetch_cycle) {
             ppu->tile_data <<= 4;
             switch (ppu->cycle % 8) {
