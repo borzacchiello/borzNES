@@ -7,15 +7,6 @@
 
 #include <stdio.h>
 #include <unistd.h>
-#include <sys/time.h>
-
-static long get_timestamp_milliseconds()
-{
-    struct timeval te;
-    gettimeofday(&te, NULL);
-
-    return te.tv_sec * 1000LL + te.tv_usec / 1000;
-}
 
 int main(int argc, char const* argv[])
 {

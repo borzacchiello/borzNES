@@ -8,9 +8,21 @@
 #include "logging.h"
 
 #include <string.h>
+#include <sys/time.h>
 
+#define SHOW_FPS      1
 #define SHOW_CPU_INFO 1
 #define SHOW_PPU_INFO 1
+
+long get_timestamp_milliseconds()
+{
+    struct timeval te;
+    gettimeofday(&te, NULL);
+
+    return te.tv_sec * 1000LL + te.tv_usec / 1000;
+}
+
+static long g_prev_timestamp = 0;
 
 GameWindow* gamewindow_build(System* sys)
 {
@@ -53,6 +65,7 @@ GameWindow* gamewindow_build(System* sys)
     gw->patterntab2_surface = SDL_CreateRGBSurface(
         0, 128, 128, 32, 0xFF000000, 0x00FF0000, 0x0000FF00, 0x000000FF);
 
+    g_prev_timestamp = get_timestamp_milliseconds();
     ppu_set_game_window(sys->ppu, gw);
     return gw;
 }
@@ -190,8 +203,19 @@ void gamewindow_draw(GameWindow* gw)
         draw_patterntables(gw, 0);
     }
 
+#if SHOW_FPS
+    static char fps_str[32];
+    memset(fps_str, 0, sizeof(fps_str));
+
+    long   dt  = get_timestamp_milliseconds() - g_prev_timestamp;
+    double fps = 1000.0l / dt;
+    sprintf(fps_str, "FPS: %.03lf", fps);
+    window_draw_text(gw->win, 0, gw->text_col_off, color_white, fps_str);
+
+    g_prev_timestamp = get_timestamp_milliseconds();
+#endif
+
 #if SHOW_CPU_INFO
-    // Draw CPU and PPU info
     for (int32_t i = -2; i < 3; ++i) {
         int32_t addr = (int32_t)gw->sys->cpu->PC;
         addr += i;

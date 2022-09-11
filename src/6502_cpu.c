@@ -243,7 +243,7 @@ static void handler_beq(Cpu* cpu, HandlerData* hd)
 
 static void handler_plp(Cpu* cpu, HandlerData* hd)
 {
-    unpack_flags(cpu, stack_pop(cpu) & 0xEF | 0x20 /* unused */);
+    unpack_flags(cpu, (stack_pop(cpu) & 0xEF) | 0x20 /* unused */);
 }
 
 static void handler_rts(Cpu* cpu, HandlerData* hd)
