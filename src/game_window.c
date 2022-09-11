@@ -47,6 +47,8 @@ GameWindow* gamewindow_build(System* sys)
     gw->palettes_x = gw->patterntab1_x;
     gw->palettes_y = gw->patterntab1_y - 20;
 
+    gw->patterntab_palette_idx = 0;
+
     gw->win = window_build(gw->gamewin_width * gw->gamewin_scale +
                                gw->text_width + 20,
                            gw->gamewin_height * gw->gamewin_scale + 20);
@@ -200,7 +202,7 @@ void gamewindow_draw(GameWindow* gw)
     if (++draw_context_counter == 16) {
         draw_context_counter = 0;
         draw_palettes(gw);
-        draw_patterntables(gw, 0);
+        draw_patterntables(gw, gw->patterntab_palette_idx);
     }
 
 #if SHOW_FPS

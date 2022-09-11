@@ -36,6 +36,10 @@ int main(int argc, char const* argv[])
                     case SDLK_q:
                         should_quit = 1;
                         break;
+                    case SDLK_p:
+                        gw->patterntab_palette_idx =
+                            (gw->patterntab_palette_idx + 1) % 8;
+                        break;
                     case SDLK_z:
                         p1.A = 1;
                         break;

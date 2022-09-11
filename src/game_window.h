@@ -28,6 +28,8 @@ typedef struct GameWindow {
     int text_width;
     int text_col_off;
 
+    int patterntab_palette_idx;
+
     SDL_Surface* gamewin_surface;
     SDL_Surface* palettes_surface;
     SDL_Surface* patterntab1_surface;
