@@ -14,25 +14,6 @@
 
 #define IS_PIXEL_TRANSPARENT(p) ((p) % 4 == 0)
 
-#define MASK_NAME_TABLE           (uint32_t)(3u)
-#define FLAG_SPRITE_OVERFLOW      (uint32_t)(1u << 2)
-#define FLAG_SPRITE_ZERO_HIT      (uint32_t)(1u << 3)
-#define FLAG_IN_VBLANK            (uint32_t)(1u << 4)
-#define FLAG_INCREMENT            (uint32_t)(1u << 5)
-#define FLAG_SPRITE_TABLE         (uint32_t)(1u << 6)
-#define FLAG_BACKGROUND_TABLE     (uint32_t)(1u << 7)
-#define FLAG_SPRITE_SIZE          (uint32_t)(1u << 8)
-#define FLAG_MASTER_SLAVE         (uint32_t)(1u << 9)
-#define FLAG_GRAYSCALE            (uint32_t)(1u << 10)
-#define FLAG_SHOW_LEFT_BACKGROUND (uint32_t)(1u << 11)
-#define FLAG_SHOW_LEFT_SPRITES    (uint32_t)(1u << 12)
-#define FLAG_SHOW_BACKGROUND      (uint32_t)(1u << 13)
-#define FLAG_SHOW_SPRITES         (uint32_t)(1u << 14)
-#define FLAG_RED_TINT             (uint32_t)(1u << 15)
-#define FLAG_GREEN_TINT           (uint32_t)(1u << 16)
-#define FLAG_BLUE_TINT            (uint32_t)(1u << 17)
-#define FLAG_TRIGGER_NMI          (uint32_t)(1u << 18)
-
 uint32_t palette_colors[] = {
     PACK_RGB(84, 84, 84),    // 0x00
     PACK_RGB(0, 30, 116),    // 0x01
@@ -167,7 +148,7 @@ static void increment_y(Ppu* ppu)
 static void updated_nmi(Ppu* ppu)
 {
     int trigger_nmi =
-        (ppu->flags & FLAG_IN_VBLANK) && (ppu->flags & FLAG_TRIGGER_NMI);
+        (ppu->status_flags.in_vblank) && (ppu->ctrl_flags.trigger_nmi);
     if (trigger_nmi && !ppu->nmi_prev) {
         ppu->nmi_delay = 15;
     }
@@ -192,13 +173,13 @@ static void render_pixel(Ppu* ppu)
     int y = ppu->scanline;
 
     uint8_t bg_pixel = 0;
-    if (ppu->flags & FLAG_SHOW_BACKGROUND)
+    if (ppu->mask_flags.show_background)
         bg_pixel =
             ((uint32_t)(ppu->tile_data >> 32) >> ((7 - ppu->x) * 4)) & 0x0F;
 
     uint8_t sprite_id    = 0;
     uint8_t sprite_pixel = 0;
-    if (ppu->flags & FLAG_SHOW_SPRITES) {
+    if (ppu->mask_flags.show_sprites) {
         for (uint8_t i = 0; i < ppu->sprite_count; ++i) {
             int off = ((int)ppu->cycle - 1) - ppu->sprite_positions[i];
             if (off < 0 || off > 7)
@@ -215,9 +196,9 @@ static void render_pixel(Ppu* ppu)
         }
     }
 
-    if (x < 8 && !(ppu->flags & FLAG_SHOW_LEFT_BACKGROUND))
+    if (x < 8 && !ppu->mask_flags.show_left_background)
         bg_pixel = 0;
-    if (x < 8 && !(ppu->flags & FLAG_SHOW_LEFT_SPRITES))
+    if (x < 8 && !ppu->mask_flags.show_left_sprites)
         sprite_pixel = 0;
 
     uint8_t color;
@@ -231,7 +212,7 @@ static void render_pixel(Ppu* ppu)
         color = bg_pixel;
     } else {
         if (ppu->sprite_indexes[sprite_id] == 0 && x < 255)
-            ppu->flags |= FLAG_SPRITE_ZERO_HIT;
+            ppu->status_flags.sprite_zero_hit = 1;
 
         if (ppu->sprite_priorities[sprite_id] == 0)
             color = sprite_pixel | 0x10;
@@ -245,14 +226,14 @@ static void render_pixel(Ppu* ppu)
 
 static void set_vertical_blank(Ppu* ppu)
 {
-    ppu->flags |= FLAG_IN_VBLANK;
+    ppu->status_flags.in_vblank = 1;
     updated_nmi(ppu);
     gamewindow_draw(ppu->gw);
 }
 
 static void clear_vertical_blank(Ppu* ppu)
 {
-    ppu->flags &= ~FLAG_IN_VBLANK;
+    ppu->status_flags.in_vblank = 0;
     updated_nmi(ppu);
 }
 
@@ -262,7 +243,7 @@ static uint32_t fetch_sprite_pattern(Ppu* ppu, uint8_t sprite_id, uint8_t row)
     uint8_t attributes = ppu->oam_data[sprite_id * 4 + 2];
 
     uint16_t addr;
-    if (ppu->flags & FLAG_SPRITE_SIZE) {
+    if (ppu->ctrl_flags.sprite_size) {
         assert(row < 16 && "fetch_sprite_pattern(): invalid row");
 
         if (attributes & 0x80)
@@ -280,7 +261,7 @@ static uint32_t fetch_sprite_pattern(Ppu* ppu, uint8_t sprite_id, uint8_t row)
 
         if (attributes & 0x80)
             row = 7 - row;
-        uint8_t table = ppu->flags & FLAG_SPRITE_TABLE ? 1 : 0;
+        uint8_t table = ppu->ctrl_flags.sprite_table;
         addr = (uint16_t)0x1000 * table + (uint16_t)tile * 16 + (uint16_t)row;
     }
 
@@ -312,14 +293,13 @@ static void update_cycle(Ppu* ppu)
 {
     if (ppu->nmi_delay > 0) {
         int must_trigger_nmi =
-            (ppu->flags & FLAG_IN_VBLANK) && (ppu->flags & FLAG_TRIGGER_NMI);
+            (ppu->status_flags.in_vblank) && (ppu->ctrl_flags.trigger_nmi);
         ppu->nmi_delay--;
         if (ppu->nmi_delay == 0 && must_trigger_nmi)
             cpu_trigger_nmi(ppu->sys->cpu);
     }
 
-    if ((ppu->flags & FLAG_SHOW_BACKGROUND) ||
-        (ppu->flags & FLAG_SHOW_SPRITES)) {
+    if (ppu->mask_flags.show_background || ppu->mask_flags.show_sprites) {
         if (ppu->f && ppu->scanline == 261 && ppu->cycle == 339) {
             ppu->cycle    = 0;
             ppu->scanline = 0;
@@ -353,7 +333,7 @@ void ppu_step(Ppu* ppu)
     update_cycle(ppu);
 
     int rendering_enabled =
-        ppu->flags & (FLAG_SHOW_BACKGROUND | FLAG_SHOW_SPRITES);
+        ppu->mask_flags.show_background || ppu->mask_flags.show_sprites;
     int pre_line        = ppu->scanline == 261;
     int visible_line    = ppu->scanline < 240;
     int render_line     = pre_line || visible_line;
@@ -404,7 +384,7 @@ void ppu_step(Ppu* ppu)
                 case 5: {
                     uint16_t fine_y = (ppu->v >> 12) & 7;
                     uint16_t addr   = ppu->name_table_byte * 16 + fine_y;
-                    if (ppu->flags & FLAG_BACKGROUND_TABLE)
+                    if (ppu->ctrl_flags.background_table)
                         addr += 0x1000;
                     ppu->low_tile_byte = memory_read(ppu->mem, addr);
                     break;
@@ -412,7 +392,7 @@ void ppu_step(Ppu* ppu)
                 case 7: {
                     uint16_t fine_y = (ppu->v >> 12) & 7;
                     uint16_t addr   = ppu->name_table_byte * 16 + fine_y;
-                    if (ppu->flags & FLAG_BACKGROUND_TABLE)
+                    if (ppu->ctrl_flags.background_table)
                         addr += 0x1000;
                     ppu->high_tile_byte = memory_read(ppu->mem, addr + 8);
                     break;
@@ -440,7 +420,7 @@ void ppu_step(Ppu* ppu)
         if (ppu->cycle == 257) {
             if (visible_line) {
                 int32_t h = 8;
-                if (ppu->flags & FLAG_SPRITE_SIZE)
+                if (ppu->ctrl_flags.sprite_size)
                     h = 16;
 
                 int32_t count = 0;
@@ -461,8 +441,8 @@ void ppu_step(Ppu* ppu)
                     count += 1;
                 }
                 if (count > 8) {
-                    count = 8;
-                    ppu->flags |= FLAG_SPRITE_OVERFLOW;
+                    count                             = 8;
+                    ppu->status_flags.sprite_overflow = 1;
                 }
                 ppu->sprite_count = count;
 
@@ -477,8 +457,8 @@ void ppu_step(Ppu* ppu)
         set_vertical_blank(ppu);
     } else if (pre_line && ppu->cycle == 1) {
         clear_vertical_blank(ppu);
-        ppu->flags &= ~FLAG_SPRITE_ZERO_HIT;
-        ppu->flags &= ~FLAG_SPRITE_OVERFLOW;
+        ppu->status_flags.sprite_zero_hit = 0;
+        ppu->status_flags.sprite_overflow = 0;
     }
 }
 
@@ -507,14 +487,14 @@ static uint8_t read_PPUSTATUS(Ppu* ppu)
      */
 
     uint8_t res = ppu->bus_content & 0x1F;
-    if (ppu->flags & FLAG_SPRITE_OVERFLOW)
+    if (ppu->status_flags.sprite_overflow)
         res |= (1u << 5);
-    if (ppu->flags & FLAG_SPRITE_ZERO_HIT)
+    if (ppu->status_flags.sprite_zero_hit)
         res |= (1u << 6);
-    if (ppu->flags & FLAG_IN_VBLANK)
+    if (ppu->status_flags.in_vblank)
         res |= (1u << 7);
-    ppu->flags &= ~FLAG_IN_VBLANK;
-    ppu->w = 0;
+    ppu->status_flags.in_vblank = 0;
+    ppu->w                      = 0;
 
     updated_nmi(ppu);
     return res;
@@ -551,7 +531,7 @@ static uint8_t read_PPUDATA(Ppu* ppu)
         ppu->buffered_ppudata = memory_read(ppu->mem, ppu->v - 0x1000u);
     }
 
-    if (ppu->flags & FLAG_INCREMENT)
+    if (ppu->ctrl_flags.increment)
         ppu->v += 32u;
     else
         ppu->v += 1u;
@@ -579,31 +559,13 @@ static void write_PPUCTRL(Ppu* ppu, uint8_t value)
             vertical blanking interval (0: off; 1: on)
     */
 
-    ppu->flags |= (value & 3);
-    if ((value >> 2) & 1ul)
-        ppu->flags |= FLAG_INCREMENT;
-    else
-        ppu->flags &= ~FLAG_INCREMENT;
-    if ((value >> 3) & 1ul)
-        ppu->flags |= FLAG_SPRITE_TABLE;
-    else
-        ppu->flags &= ~FLAG_SPRITE_TABLE;
-    if ((value >> 4) & 1ul)
-        ppu->flags |= FLAG_BACKGROUND_TABLE;
-    else
-        ppu->flags &= ~FLAG_BACKGROUND_TABLE;
-    if ((value >> 5) & 1ul)
-        ppu->flags |= FLAG_SPRITE_SIZE;
-    else
-        ppu->flags &= ~FLAG_SPRITE_SIZE;
-    if ((value >> 6) & 1ul)
-        ppu->flags |= FLAG_MASTER_SLAVE;
-    else
-        ppu->flags &= ~FLAG_MASTER_SLAVE;
-    if ((value >> 7) & 1ul)
-        ppu->flags |= FLAG_TRIGGER_NMI;
-    else
-        ppu->flags &= ~FLAG_TRIGGER_NMI;
+    ppu->ctrl_flags.name_table       = value & 3;
+    ppu->ctrl_flags.increment        = (value >> 2) & 1;
+    ppu->ctrl_flags.sprite_table     = (value >> 3) & 1;
+    ppu->ctrl_flags.background_table = (value >> 4) & 1;
+    ppu->ctrl_flags.sprite_size      = (value >> 5) & 1;
+    ppu->ctrl_flags.master_slave     = (value >> 6) & 1;
+    ppu->ctrl_flags.trigger_nmi      = (value >> 7) & 1;
 
     updated_nmi(ppu);
 
@@ -629,38 +591,14 @@ static void write_PPUMASK(Ppu* ppu, uint8_t value)
     +--------- Emphasize blue
     */
 
-    if (value & 1)
-        ppu->flags |= FLAG_GRAYSCALE;
-    else
-        ppu->flags &= ~FLAG_GRAYSCALE;
-    if ((value >> 1) & 1)
-        ppu->flags |= FLAG_SHOW_LEFT_BACKGROUND;
-    else
-        ppu->flags &= ~FLAG_SHOW_LEFT_BACKGROUND;
-    if ((value >> 2) & 1)
-        ppu->flags |= FLAG_SHOW_LEFT_SPRITES;
-    else
-        ppu->flags &= ~FLAG_SHOW_LEFT_SPRITES;
-    if ((value >> 3) & 1)
-        ppu->flags |= FLAG_SHOW_BACKGROUND;
-    else
-        ppu->flags &= ~FLAG_SHOW_BACKGROUND;
-    if ((value >> 4) & 1)
-        ppu->flags |= FLAG_SHOW_SPRITES;
-    else
-        ppu->flags &= ~FLAG_SHOW_SPRITES;
-    if ((value >> 5) & 1)
-        ppu->flags |= FLAG_RED_TINT;
-    else
-        ppu->flags &= ~FLAG_RED_TINT;
-    if ((value >> 6) & 1)
-        ppu->flags |= FLAG_GREEN_TINT;
-    else
-        ppu->flags &= ~FLAG_GREEN_TINT;
-    if ((value >> 6) & 1)
-        ppu->flags |= FLAG_BLUE_TINT;
-    else
-        ppu->flags &= ~FLAG_BLUE_TINT;
+    ppu->mask_flags.grayscale            = value & 1;
+    ppu->mask_flags.show_left_background = (value >> 1) & 1;
+    ppu->mask_flags.show_left_sprites    = (value >> 2) & 1;
+    ppu->mask_flags.show_background      = (value >> 3) & 1;
+    ppu->mask_flags.show_sprites         = (value >> 4) & 1;
+    ppu->mask_flags.red_tint             = (value >> 5) & 1;
+    ppu->mask_flags.green_tint           = (value >> 6) & 1;
+    ppu->mask_flags.blue_tint            = (value >> 7) & 1;
 }
 
 static void write_OAMADDR(Ppu* ppu, uint8_t value) { ppu->oam_addr = value; }
@@ -712,7 +650,7 @@ static void write_PPUDATA(Ppu* ppu, uint8_t value)
 {
     memory_write(ppu->mem, ppu->v, value);
 
-    if (ppu->flags & FLAG_INCREMENT)
+    if (ppu->ctrl_flags.increment)
         ppu->v += 32;
     else
         ppu->v += 1;
@@ -814,11 +752,10 @@ const char* ppu_tostring_short(Ppu* ppu)
             "T=%04x SB=%d SS=%d VB=%d SZH=%d X=%03u TD=%016lx LTB=%02x "
             "HTB=%02x NTB=%02x",
             ppu->scanline, ppu->cycle, ppu->nmi_delay, ppu->nmi_prev,
-            (ppu->flags & FLAG_TRIGGER_NMI) ? 1 : 0, ppu->v, ppu->t,
-            (ppu->flags & FLAG_SHOW_BACKGROUND) ? 1 : 0,
-            (ppu->flags & FLAG_SHOW_SPRITES) ? 1 : 0,
-            (ppu->flags & FLAG_IN_VBLANK) ? 1 : 0,
-            (ppu->flags & FLAG_SPRITE_ZERO_HIT ? 1 : 0), ppu->x, ppu->tile_data,
-            ppu->low_tile_byte, ppu->high_tile_byte, ppu->name_table_byte);
+            ppu->ctrl_flags.trigger_nmi, ppu->v, ppu->t,
+            ppu->mask_flags.show_background, ppu->mask_flags.show_sprites,
+            ppu->status_flags.in_vblank, ppu->status_flags.sprite_zero_hit,
+            ppu->x, ppu->tile_data, ppu->low_tile_byte, ppu->high_tile_byte,
+            ppu->name_table_byte);
     return res;
 }

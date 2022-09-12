@@ -6,6 +6,49 @@
 struct GameWindow;
 struct System;
 struct Memory;
+
+typedef struct PpuStatusFlags {
+    union {
+        struct {
+            uint8_t sprite_overflow : 1;
+            uint8_t sprite_zero_hit : 1;
+            uint8_t in_vblank : 1;
+        };
+        uint8_t flags;
+    };
+} PpuStatusFlags;
+
+typedef struct PpuCtrlFlags {
+    union {
+        struct {
+            uint8_t name_table : 3;
+            uint8_t increment : 1;
+            uint8_t sprite_table : 1;
+            uint8_t background_table : 1;
+            uint8_t sprite_size : 1;
+            uint8_t master_slave : 1;
+            uint8_t trigger_nmi : 1;
+        };
+        uint8_t flags;
+    };
+} PpuCtrlFlags;
+
+typedef struct PpuMaskFlags {
+    union {
+        struct {
+            uint8_t grayscale : 1;
+            uint8_t show_left_background : 1;
+            uint8_t show_left_sprites : 1;
+            uint8_t show_background : 1;
+            uint8_t show_sprites : 1;
+            uint8_t red_tint : 1;
+            uint8_t green_tint : 1;
+            uint8_t blue_tint : 1;
+        };
+        uint8_t flags;
+    };
+} PpuMaskFlags;
+
 typedef struct Ppu {
     struct Memory*     mem;
     struct System*     sys;
@@ -41,6 +84,10 @@ typedef struct Ppu {
 
     int32_t nmi_prev;
     int32_t nmi_delay;
+
+    PpuStatusFlags status_flags;
+    PpuCtrlFlags   ctrl_flags;
+    PpuMaskFlags   mask_flags;
 
     uint32_t flags;
     uint8_t  bus_content;

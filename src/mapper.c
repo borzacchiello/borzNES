@@ -6,10 +6,6 @@
 #include "system.h"
 #include "6502_cpu.h"
 
-// TODO REMOVE THIS
-#define FLAG_SHOW_BACKGROUND (uint32_t)(1u << 13)
-#define FLAG_SHOW_SPRITES    (uint32_t)(1u << 14)
-
 static void generic_destroy(void* _map) { free(_map); }
 
 // MAPPER 000: NROM
@@ -404,8 +400,8 @@ static void MMC3_step(void* _map, System* sys)
         return;
     if (sys->ppu->scanline >= 240)
         return;
-    if (!(sys->ppu->flags & FLAG_SHOW_BACKGROUND) &&
-        !(sys->ppu->flags & FLAG_SHOW_SPRITES))
+    if (!sys->ppu->mask_flags.show_background &&
+        !sys->ppu->mask_flags.show_sprites)
         return;
 
     if (map->irq_counter == 0)
