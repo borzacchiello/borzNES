@@ -2,6 +2,15 @@
 #include "alloc.h"
 #include "cartridge.h"
 #include "logging.h"
+#include "ppu.h"
+#include "system.h"
+#include "6502_cpu.h"
+
+// TODO REMOVE THIS
+#define FLAG_SHOW_BACKGROUND (uint32_t)(1u << 13)
+#define FLAG_SHOW_SPRITES    (uint32_t)(1u << 14)
+
+static void generic_destroy(void* _map) { free(_map); }
 
 // MAPPER 000: NROM
 typedef struct NROM {
@@ -19,7 +28,6 @@ static NROM* NROM_build(Cartridge* cart)
 
     return map;
 }
-static void NROM_destroy(void* _map) { free(_map); }
 
 static uint8_t NROM_read(void* _map, uint16_t addr)
 {
@@ -72,28 +80,40 @@ typedef struct MMC1 {
     int32_t    chr_offsets[2];
 } MMC1;
 
-static int32_t MMC1_calc_prg_bank_offset(MMC1* map, int32_t idx)
+static int32_t MMC_calc_prg_bank_offset(Cartridge* cart, int32_t idx,
+                                        uint32_t page_size)
 {
     if (idx >= 0x80)
         idx -= 0x100;
 
-    idx %= map->cart->PRG_size / 0x4000;
-    int32_t off = idx * 0x4000;
+    idx %= cart->PRG_size / page_size;
+    int32_t off = idx * page_size;
     if (off < 0)
-        off += map->cart->PRG_size;
+        off += cart->PRG_size;
     return off;
 }
 
-static int32_t MMC1_calc_chr_bank_offset(MMC1* map, int32_t idx)
+static int32_t MMC_calc_chr_bank_offset(Cartridge* cart, int32_t idx,
+                                        uint32_t page_size)
 {
     if (idx >= 0x80)
         idx -= 0x100;
 
-    idx %= map->cart->CHR_size / 0x1000;
-    int32_t off = idx * 0x1000;
+    idx %= cart->CHR_size / page_size;
+    int32_t off = idx * page_size;
     if (off < 0)
-        off += map->cart->CHR_size;
+        off += cart->CHR_size;
     return off;
+}
+
+static inline int32_t MMC1_calc_prg_bank_offset(MMC1* map, int32_t idx)
+{
+    return MMC_calc_prg_bank_offset(map->cart, idx, 0x4000);
+}
+
+static inline int32_t MMC1_calc_chr_bank_offset(MMC1* map, int32_t idx)
+{
+    return MMC_calc_chr_bank_offset(map->cart, idx, 0x1000);
 }
 
 static MMC1* MMC1_build(Cartridge* cart)
@@ -105,8 +125,6 @@ static MMC1* MMC1_build(Cartridge* cart)
 
     return map;
 }
-
-static void MMC1_destroy(void* _map) { free(_map); }
 
 static void MMC1_update_offsets(MMC1* map)
 {
@@ -257,6 +275,191 @@ static void MMC1_write(void* _map, uint16_t addr, uint8_t value)
           value);
 }
 
+// MAPPER 004: MMC3
+
+typedef struct MMC3 {
+    Cartridge* cart;
+    uint8_t    reg;
+    uint8_t    regs[8];
+    uint8_t    prg_mode;
+    uint8_t    chr_mode;
+    int32_t    prg_offsets[4];
+    int32_t    chr_offsets[8];
+    uint8_t    reload;
+    uint8_t    irq_counter;
+    uint8_t    irq_enable;
+} MMC3;
+
+static inline int32_t MMC3_calc_prg_bank_offset(MMC3* map, int32_t idx)
+{
+    return MMC_calc_prg_bank_offset(map->cart, idx, 0x2000);
+}
+
+static inline int32_t MMC3_calc_chr_bank_offset(MMC3* map, int32_t idx)
+{
+    return MMC_calc_chr_bank_offset(map->cart, idx, 0x0400);
+}
+
+static MMC3* MMC3_build(Cartridge* cart)
+{
+    MMC3* map           = calloc_or_fail(sizeof(MMC3));
+    map->cart           = cart;
+    map->prg_offsets[0] = MMC3_calc_prg_bank_offset(map, 0);
+    map->prg_offsets[1] = MMC3_calc_prg_bank_offset(map, 1);
+    map->prg_offsets[2] = MMC3_calc_prg_bank_offset(map, -2);
+    map->prg_offsets[3] = MMC3_calc_prg_bank_offset(map, -1);
+
+    return map;
+}
+
+static void MMC3_update_offsets(MMC3* map)
+{
+    switch (map->prg_mode) {
+        case 0:
+            map->prg_offsets[0] = MMC3_calc_prg_bank_offset(map, map->regs[6]);
+            map->prg_offsets[1] = MMC3_calc_prg_bank_offset(map, map->regs[7]);
+            map->prg_offsets[2] = MMC3_calc_prg_bank_offset(map, -2);
+            map->prg_offsets[3] = MMC3_calc_prg_bank_offset(map, -1);
+            break;
+        case 1:
+            map->prg_offsets[0] = MMC3_calc_prg_bank_offset(map, -2);
+            map->prg_offsets[1] = MMC3_calc_prg_bank_offset(map, map->regs[7]);
+            map->prg_offsets[2] = MMC3_calc_prg_bank_offset(map, map->regs[6]);
+            map->prg_offsets[3] = MMC3_calc_prg_bank_offset(map, -1);
+            break;
+        default:
+            panic("MMC3_update_offsets(): unexpected prg_mode (%u)",
+                  map->prg_mode);
+    }
+
+    switch (map->chr_mode) {
+        case 0:
+            map->chr_offsets[0] =
+                MMC3_calc_chr_bank_offset(map, map->regs[0] & 0xFE);
+            map->chr_offsets[1] =
+                MMC3_calc_chr_bank_offset(map, map->regs[0] | 0x01);
+            map->chr_offsets[2] =
+                MMC3_calc_chr_bank_offset(map, map->regs[1] & 0xFE);
+            map->chr_offsets[3] =
+                MMC3_calc_chr_bank_offset(map, map->regs[1] | 0x01);
+            map->chr_offsets[4] = MMC3_calc_chr_bank_offset(map, map->regs[2]);
+            map->chr_offsets[5] = MMC3_calc_chr_bank_offset(map, map->regs[3]);
+            map->chr_offsets[6] = MMC3_calc_chr_bank_offset(map, map->regs[4]);
+            map->chr_offsets[7] = MMC3_calc_chr_bank_offset(map, map->regs[5]);
+            break;
+        case 1:
+            map->chr_offsets[0] = MMC3_calc_chr_bank_offset(map, map->regs[2]);
+            map->chr_offsets[1] = MMC3_calc_chr_bank_offset(map, map->regs[3]);
+            map->chr_offsets[2] = MMC3_calc_chr_bank_offset(map, map->regs[4]);
+            map->chr_offsets[3] = MMC3_calc_chr_bank_offset(map, map->regs[5]);
+            map->chr_offsets[4] =
+                MMC3_calc_chr_bank_offset(map, map->regs[0] & 0xFE);
+            map->chr_offsets[5] =
+                MMC3_calc_chr_bank_offset(map, map->regs[0] | 0x01);
+            map->chr_offsets[6] =
+                MMC3_calc_chr_bank_offset(map, map->regs[1] & 0xFE);
+            map->chr_offsets[7] =
+                MMC3_calc_chr_bank_offset(map, map->regs[1] | 0x01);
+            break;
+        default:
+            panic("MMC3_update_offsets(): unexpected chr_mode (%u)",
+                  map->chr_mode);
+    }
+}
+
+static void MMC3_write_reg(MMC3* map, uint16_t addr, uint8_t value)
+{
+    if (addr <= 0x9FFF && addr % 2 == 0) {
+        map->prg_mode = (value >> 6) & 1;
+        map->chr_mode = (value >> 7) & 1;
+        map->reg      = value & 7;
+        MMC3_update_offsets(map);
+    } else if (addr <= 0x9FFF && addr % 2 == 1) {
+        map->regs[map->reg] = value;
+        MMC3_update_offsets(map);
+    } else if (addr <= 0xBFFF && addr % 2 == 0) {
+        if (value & 1)
+            map->cart->mirror = MIRROR_HORIZONTAL;
+        else
+            map->cart->mirror = MIRROR_VERTICAL;
+    } else if (addr <= 0xBFFF && addr % 2 == 1) {
+        // Do nothing
+    } else if (addr <= 0xDFFF && addr % 2 == 0) {
+        map->reload = value;
+    } else if (addr <= 0xDFFF && addr % 2 == 1) {
+        map->irq_counter = 0;
+    } else if (addr <= 0xFFFF && addr % 2 == 0) {
+        map->irq_enable = 0;
+    } else if (addr <= 0xFFFF && addr % 2 == 1) {
+        map->irq_enable = 1;
+    } else
+        panic("invalid write in MMC3 @ 0x%04x [0x%02x]", addr, value);
+}
+
+static void MMC3_step(void* _map, System* sys)
+{
+    MMC3* map = (MMC3*)_map;
+
+    if (sys->ppu->cycle != 260)
+        return;
+    if (sys->ppu->scanline >= 240)
+        return;
+    if (!(sys->ppu->flags & FLAG_SHOW_BACKGROUND) &&
+        !(sys->ppu->flags & FLAG_SHOW_SPRITES))
+        return;
+
+    if (map->irq_counter == 0)
+        map->irq_counter = map->reload;
+    else {
+        map->irq_counter--;
+        if (map->irq_counter == 0 && map->irq_enable)
+            cpu_trigger_irq(sys->cpu);
+    }
+}
+
+static uint8_t MMC3_read(void* _map, uint16_t addr)
+{
+    MMC3* map = (MMC3*)_map;
+    if (addr < 0x2000) {
+        uint16_t bank = addr / 0x0400;
+        uint16_t off  = addr % 0x0400;
+        return map->cart->CHR[map->chr_offsets[bank] + off];
+    }
+    if (addr >= 0x8000) {
+        addr -= 0x8000;
+        uint16_t bank = addr / 0x2000;
+        uint16_t off  = addr % 0x2000;
+        return map->cart->PRG[map->prg_offsets[bank] + off];
+    }
+    if (addr >= 0x6000) {
+        return map->cart->SRAM[addr - 0x6000];
+    }
+
+    panic("unable to read at address 0x%04x from MMC3 mapper", addr);
+}
+
+static void MMC3_write(void* _map, uint16_t addr, uint8_t value)
+{
+    MMC3* map = (MMC3*)_map;
+    if (addr < 0x2000) {
+        uint16_t bank                                = addr / 0x0400;
+        uint16_t off                                 = addr % 0x0400;
+        map->cart->CHR[map->chr_offsets[bank] + off] = value;
+        return;
+    }
+    if (addr >= 0x8000) {
+        MMC3_write_reg(map, addr, value);
+        return;
+    }
+    if (addr >= 0x6000) {
+        map->cart->SRAM[addr - 0x6000] = value;
+        return;
+    }
+
+    panic("unable to write at address 0x%04x from MMC3 mapper [0x%02x]", addr,
+          value);
+}
+
 // Polymorphic Mapper
 Mapper* mapper_build(Cartridge* cart)
 {
@@ -266,18 +469,30 @@ Mapper* mapper_build(Cartridge* cart)
             NROM* nrom   = NROM_build(cart);
             map->obj     = nrom;
             map->name    = "NROM";
+            map->step    = NULL;
             map->read    = &NROM_read;
             map->write   = &NROM_write;
-            map->destroy = &NROM_destroy;
+            map->destroy = &generic_destroy;
             break;
         }
         case 1: {
             MMC1* mmc1   = MMC1_build(cart);
             map->obj     = mmc1;
             map->name    = "MMC1";
+            map->step    = NULL;
             map->read    = &MMC1_read;
             map->write   = &MMC1_write;
-            map->destroy = &MMC1_destroy;
+            map->destroy = &generic_destroy;
+            break;
+        }
+        case 4: {
+            MMC3* mmc3   = MMC3_build(cart);
+            map->obj     = mmc3;
+            map->name    = "MMC3";
+            map->step    = &MMC3_step;
+            map->read    = &MMC3_read;
+            map->write   = &MMC3_write;
+            map->destroy = &generic_destroy;
             break;
         }
         default:
@@ -301,4 +516,10 @@ uint8_t mapper_read(Mapper* map, uint16_t addr)
 void mapper_write(Mapper* map, uint16_t addr, uint8_t value)
 {
     return map->write(map->obj, addr, value);
+}
+
+void mapper_step(Mapper* map, System* sys)
+{
+    if (map->step)
+        map->step(map->obj, sys);
 }

@@ -43,6 +43,7 @@ uint64_t system_step(System* sys)
 
     for (uint64_t i = 0; i < ppu_cycles; ++i) {
         ppu_step(sys->ppu);
+        mapper_step(sys->mapper, sys);
     }
     return cpu_cycles;
 }
