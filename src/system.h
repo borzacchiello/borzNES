@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 
+#define CPU_1X_FREQ 1789773l
+#define CPU_2X_FREQ 3579546l
+
 struct Cpu;
 struct Ppu;
 struct Cartridge;
@@ -36,6 +39,7 @@ typedef struct System {
     uint8_t           RAM[2048];
     ControllerState   controller_state[2];
     uint8_t           controller_shift_reg[2];
+    int64_t           cpu_freq;
 } System;
 
 System* system_build(const char* rom_path);

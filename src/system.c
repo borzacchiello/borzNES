@@ -7,8 +7,6 @@
 
 #include <stdio.h>
 
-#define CPU_FREQ 1789773l
-
 System* system_build(const char* rom_path)
 {
     System* sys = calloc_or_fail(sizeof(System));
@@ -18,10 +16,11 @@ System* system_build(const char* rom_path)
     Cpu*       cpu  = cpu_build(sys);
     Ppu*       ppu  = ppu_build(sys);
 
-    sys->cart   = cart;
-    sys->mapper = map;
-    sys->cpu    = cpu;
-    sys->ppu    = ppu;
+    sys->cart     = cart;
+    sys->mapper   = map;
+    sys->cpu      = cpu;
+    sys->ppu      = ppu;
+    sys->cpu_freq = CPU_1X_FREQ;
 
     cpu_reset(cpu);
     ppu_reset(ppu);
@@ -50,7 +49,7 @@ uint64_t system_step(System* sys)
 
 void system_step_ms(System* sys, int64_t delta_time_ms)
 {
-    int64_t cycles = (int64_t)(CPU_FREQ / 1000l * delta_time_ms);
+    int64_t cycles = (int64_t)(sys->cpu_freq / 1000l * delta_time_ms);
     while (cycles > 0)
         cycles -= system_step(sys);
 }
