@@ -6,7 +6,9 @@
 typedef enum {
     MIRROR_HORIZONTAL = 0,
     MIRROR_VERTICAL   = 1,
-    MIRROR_ALL        = 2
+    MIRROR_SINGLE0    = 2,
+    MIRROR_SINGLE1    = 3,
+    MIRROR_FOUR       = 4
 } Mirroring;
 
 typedef struct Cartridge {

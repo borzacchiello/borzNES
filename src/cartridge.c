@@ -64,12 +64,9 @@ Cartridge* cartridge_load(const char* path)
     uint8_t flag_9  = raw.buffer[9];
     uint8_t flag_10 = raw.buffer[10];
 
-    if ((flag_6 & MIRRORING_MASK) == 0)
-        cart->mirror = MIRROR_HORIZONTAL;
-    else
-        cart->mirror = MIRROR_VERTICAL;
-    if (flag_6 & MIRROR_ALL_MASK)
-        cart->mirror = MIRROR_ALL;
+    uint8_t mirror_bit1 = (flag_6 & MIRRORING_MASK) ? 1 : 0;
+    uint8_t mirror_bit2 = (flag_6 & MIRROR_ALL_MASK) ? 1 : 0;
+    cart->mirror = mirror_bit1 | (mirror_bit2 << 1);
 
     cart->battery = (flag_6 & BATTERY_MASK) > 0;
     cart->mapper  = (flag_6 >> 4) | (flag_7 & 0xf);

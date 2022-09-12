@@ -166,8 +166,10 @@ static void MMC1_write_control(MMC1* map, uint8_t value)
     map->prg_mode = (value >> 2) & 3;
     switch (value & 3) {
         case 0:
+            map->cart->mirror = MIRROR_SINGLE0;
+            break;
         case 1:
-            map->cart->mirror = MIRROR_ALL;
+            map->cart->mirror = MIRROR_SINGLE1;
             break;
         case 2:
             map->cart->mirror = MIRROR_VERTICAL;

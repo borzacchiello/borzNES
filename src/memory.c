@@ -129,17 +129,17 @@ static void cpu_memory_write(void* _mem, uint16_t addr, uint8_t value)
     panic("Invalid write @ 0x%04x [0x%02x]", addr, value);
 }
 
-static uint16_t ppu_mirror_tab[3][4] = {
-    {0, 0, 1, 1}, {0, 1, 0, 1}, {1, 1, 1, 1}};
+static uint16_t ppu_mirror_tab[5][4] = {
+    {0, 0, 1, 1}, {0, 1, 0, 1}, {0, 0, 0, 0}, {1, 1, 1, 1}, {0, 1, 2, 3}};
 
 static uint16_t mirror_address(uint8_t mirror_type, uint16_t addr)
 {
-    assert(mirror_type >= 0 && mirror_type <= 2);
+    assert(mirror_type >= 0 && mirror_type <= 4);
 
     addr         = (addr - 0x2000) % 0x1000;
     uint16_t tab = addr / 0x400;
     uint16_t off = addr % 0x400;
-    return 0x2000 + ppu_mirror_tab[mirror_type][tab] * 0x400 + off;
+    return (uint16_t)0x2000 + ppu_mirror_tab[mirror_type][tab] * 0x400 + off;
 }
 
 static uint8_t read_palette(Ppu* ppu, uint16_t addr)

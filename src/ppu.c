@@ -16,7 +16,7 @@
 
 #define MASK_NAME_TABLE           (uint32_t)(3u)
 #define FLAG_SPRITE_OVERFLOW      (uint32_t)(1u << 2)
-#define FLAG_SPRITE_HIT_ZERO      (uint32_t)(1u << 3)
+#define FLAG_SPRITE_ZERO_HIT      (uint32_t)(1u << 3)
 #define FLAG_IN_VBLANK            (uint32_t)(1u << 4)
 #define FLAG_INCREMENT            (uint32_t)(1u << 5)
 #define FLAG_SPRITE_TABLE         (uint32_t)(1u << 6)
@@ -136,9 +136,9 @@ void ppu_reset(Ppu* ppu)
 
 static void increment_x(Ppu* ppu)
 {
-    if ((ppu->v & (uint16_t)0x001F) == 31) { // if coarse X == 31
-        ppu->v &= ~(uint16_t)0x001F;         // coarse X = 0
-        ppu->v ^= (uint16_t)0x0400;          // switch horizontal nametable
+    if ((ppu->v & 0x001F) == 31) { // if coarse X == 31
+        ppu->v &= 0xFFE0;          // coarse X = 0
+        ppu->v ^= 0x0400;          // switch horizontal nametable
     } else {
         ppu->v += 1; // increment coarse X
     }
@@ -146,23 +146,22 @@ static void increment_x(Ppu* ppu)
 
 static void increment_y(Ppu* ppu)
 {
-    if ((ppu->v & (uint16_t)0x7000u) != (uint16_t)0x7000) { // if fine Y < 7
-        ppu->v += 0x1000;                                   // increment fine Y
+    if ((ppu->v & 0x7000) != (uint16_t)0x7000) { // if fine Y < 7
+        ppu->v += 0x1000;                        // increment fine Y
         return;
     }
 
-    ppu->v &= ~(uint16_t)0x7000;                   // fine Y = 0
-    uint16_t y = (ppu->v & (uint16_t)0x03E0) >> 5; // let y = coarse Y
+    ppu->v &= 0x8FFF;                    // fine Y = 0
+    uint16_t y = (ppu->v & 0x03E0) >> 5; // let y = coarse Y
     if (y == 29) {
-        y = 0;                      // coarse Y = 0
-        ppu->v ^= (uint16_t)0x0800; // switch vertical nametable
+        y = 0;            // coarse Y = 0
+        ppu->v ^= 0x0800; // switch vertical nametable
     } else if (y == 31) {
         y = 0; // coarse Y = 0, nametable not switched
     } else {
         y += 1; // increment coarse Y
     }
-    ppu->v =
-        (ppu->v & ~(uint16_t)0x03E0) | (y << 5); // put coarse Y back into v
+    ppu->v = (ppu->v & 0xFC1F) | (y << 5); // put coarse Y back into v
 }
 
 static void updated_nmi(Ppu* ppu)
@@ -178,15 +177,13 @@ static void updated_nmi(Ppu* ppu)
 static void copy_x(Ppu* ppu)
 {
     // v: .....F.. ...EDCBA = t: .....F.. ...EDCBA
-    ppu->v = (ppu->v & (uint16_t)0b1111101111100000);
-    ppu->v |= (ppu->t & (uint16_t)0b0000010000011111);
+    ppu->v = (ppu->v & 0xFBE0) | (ppu->t & 0x041F);
 }
 
 static void copy_y(Ppu* ppu)
 {
     // v: .IHGF.ED CBA..... = t: .IHGF.ED CBA.....
-    ppu->v = (ppu->v & (uint16_t)0b100010000011111);
-    ppu->v |= (ppu->t & (uint16_t)0b011101111100000);
+    ppu->v = (ppu->v & 0x841F) | (ppu->t & 0x7BE0);
 }
 
 static void render_pixel(Ppu* ppu)
@@ -212,8 +209,8 @@ static void render_pixel(Ppu* ppu)
             if (IS_PIXEL_TRANSPARENT(pixel))
                 continue;
 
-            sprite_pixel  = pixel;
-            sprite_id     = i;
+            sprite_pixel = pixel;
+            sprite_id    = i;
             break;
         }
     }
@@ -234,7 +231,7 @@ static void render_pixel(Ppu* ppu)
         color = bg_pixel;
     } else {
         if (ppu->sprite_indexes[sprite_id] == 0 && x < 255)
-            ppu->flags |= FLAG_SPRITE_HIT_ZERO;
+            ppu->flags |= FLAG_SPRITE_ZERO_HIT;
 
         if (ppu->sprite_priorities[sprite_id] == 0)
             color = sprite_pixel | 0x10;
@@ -250,6 +247,7 @@ static void set_vertical_blank(Ppu* ppu)
 {
     ppu->flags |= FLAG_IN_VBLANK;
     updated_nmi(ppu);
+    gamewindow_draw(ppu->gw);
 }
 
 static void clear_vertical_blank(Ppu* ppu)
@@ -479,7 +477,7 @@ void ppu_step(Ppu* ppu)
         set_vertical_blank(ppu);
     } else if (pre_line && ppu->cycle == 1) {
         clear_vertical_blank(ppu);
-        ppu->flags &= ~FLAG_SPRITE_HIT_ZERO;
+        ppu->flags &= ~FLAG_SPRITE_ZERO_HIT;
         ppu->flags &= ~FLAG_SPRITE_OVERFLOW;
     }
 }
@@ -511,7 +509,7 @@ static uint8_t read_PPUSTATUS(Ppu* ppu)
     uint8_t res = ppu->bus_content & 0x1F;
     if (ppu->flags & FLAG_SPRITE_OVERFLOW)
         res |= (1u << 5);
-    if (ppu->flags & FLAG_SPRITE_HIT_ZERO)
+    if (ppu->flags & FLAG_SPRITE_ZERO_HIT)
         res |= (1u << 6);
     if (ppu->flags & FLAG_IN_VBLANK)
         res |= (1u << 7);
@@ -808,13 +806,19 @@ const char* ppu_tostring(Ppu* ppu)
 
 const char* ppu_tostring_short(Ppu* ppu)
 {
-    static char res[128];
+    static char res[256];
     memset(res, 0, sizeof(res));
 
-    sprintf(
-        res,
-        "PPU: SL=%03u CYC=%03u DL=%02d PREV_NMI=%d NMI_OUT=%d V=%04x T=%04x",
-        ppu->scanline, ppu->cycle, ppu->nmi_delay, ppu->nmi_prev,
-        (ppu->flags & FLAG_TRIGGER_NMI) ? 1 : 0, ppu->v, ppu->t);
+    sprintf(res,
+            "PPU: SL=%03u CYC=%03u DL=%02d PREV_NMI=%d NMI_OUT=%d V=%04x "
+            "T=%04x SB=%d SS=%d VB=%d SZH=%d X=%03u TD=%016lx LTB=%02x "
+            "HTB=%02x NTB=%02x",
+            ppu->scanline, ppu->cycle, ppu->nmi_delay, ppu->nmi_prev,
+            (ppu->flags & FLAG_TRIGGER_NMI) ? 1 : 0, ppu->v, ppu->t,
+            (ppu->flags & FLAG_SHOW_BACKGROUND) ? 1 : 0,
+            (ppu->flags & FLAG_SHOW_SPRITES) ? 1 : 0,
+            (ppu->flags & FLAG_IN_VBLANK) ? 1 : 0,
+            (ppu->flags & FLAG_SPRITE_ZERO_HIT ? 1 : 0), ppu->x, ppu->tile_data,
+            ppu->low_tile_byte, ppu->high_tile_byte, ppu->name_table_byte);
     return res;
 }

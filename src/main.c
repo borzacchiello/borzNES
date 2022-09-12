@@ -98,10 +98,6 @@ int main(int argc, char const* argv[])
         }
 
         system_step_ms(sys, get_timestamp_milliseconds() - start);
-        if (old_frame != gw->sys->ppu->frame) {
-            old_frame = gw->sys->ppu->frame;
-            gamewindow_draw(gw);
-        }
     }
 
     gamewindow_destroy(gw);
