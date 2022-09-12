@@ -29,12 +29,13 @@ GameWindow* gamewindow_build(System* sys)
     GameWindow* gw = malloc_or_fail(sizeof(GameWindow));
     gw->sys        = sys;
 
-    gw->gamewin_scale  = 3;
-    gw->gamewin_width  = 256;
-    gw->gamewin_height = 240;
-    gw->text_width     = gw->gamewin_width * 2 + gw->gamewin_width / 3;
-    gw->gamewin_x      = 10;
-    gw->gamewin_y      = 10;
+    gw->gamewin_scale    = 3;
+    gw->gamewin_width    = 256;
+    gw->gamewin_height   = 240;
+    gw->text_top_padding = 1;
+    gw->text_width       = gw->gamewin_width * 2 + gw->gamewin_width / 3;
+    gw->gamewin_x        = 10;
+    gw->gamewin_y        = 10;
 
     gw->patterntab1_y =
         gw->gamewin_height * gw->gamewin_scale - gw->gamewin_height - 30;
@@ -212,7 +213,8 @@ void gamewindow_draw(GameWindow* gw)
     long   dt  = get_timestamp_milliseconds() - g_prev_timestamp;
     double fps = 1000.0l / dt;
     sprintf(fps_str, "FPS: %.03lf", fps);
-    window_draw_text(gw->win, 0, gw->text_col_off, color_white, fps_str);
+    window_draw_text(gw->win, gw->text_top_padding, gw->text_col_off,
+                     color_white, fps_str);
 
     g_prev_timestamp = get_timestamp_milliseconds();
 #endif
@@ -231,17 +233,17 @@ void gamewindow_draw(GameWindow* gw)
                 strcpy(disas, " ");
             strcat(disas, cpu_disassemble(gw->sys->cpu, (uint16_t)addr));
 
-            window_draw_text(gw->win, i + 4, gw->text_col_off - 1, color_white,
-                             disas);
+            window_draw_text(gw->win, i + 4 + gw->text_top_padding,
+                             gw->text_col_off - 1, color_white, disas);
         }
     }
 
-    window_draw_text(gw->win, 8, gw->text_col_off, color_white,
-                     cpu_tostring(gw->sys->cpu));
+    window_draw_text(gw->win, 8 + gw->text_top_padding, gw->text_col_off,
+                     color_white, cpu_tostring(gw->sys->cpu));
 #endif
 #if SHOW_PPU_INFO
-    window_draw_text(gw->win, 15, gw->text_col_off, color_white,
-                     ppu_tostring(gw->sys->ppu));
+    window_draw_text(gw->win, 15 + gw->text_top_padding, gw->text_col_off,
+                     color_white, ppu_tostring(gw->sys->ppu));
 #endif
 
     SDL_Texture* gamewin_texture = SDL_CreateTextureFromSurface(

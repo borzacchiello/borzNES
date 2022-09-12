@@ -25,6 +25,7 @@ typedef struct GameWindow {
     int palettes_w, palettes_h;
     int palettes_x, palettes_y;
 
+    int text_top_padding;
     int text_width;
     int text_col_off;
 

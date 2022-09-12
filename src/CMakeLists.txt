@@ -26,14 +26,14 @@ if ( ASAN )
     set ( CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fsanitize=address,undefined" )
 endif ()
 
-add_executable ( main
+add_executable ( borznes
     ${borzNES_src}
     main.c )
 
-target_link_libraries ( main LINK_PUBLIC SDL2 SDL2_ttf )
+target_link_libraries ( borznes LINK_PUBLIC SDL2 SDL2_ttf )
 
 add_custom_command (
-        TARGET main POST_BUILD
+        TARGET borznes POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
                 ${CMAKE_SOURCE_DIR}/../font/courier.ttf
                 ${CMAKE_CURRENT_BINARY_DIR}/courier.ttf )
