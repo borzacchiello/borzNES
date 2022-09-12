@@ -10,7 +10,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#define PRINT_PPU_STATE 0
+#define PRINT_PPU_STATE    0
+#define SKIP_BORDER_PIXELS 0
 
 #define IS_PIXEL_TRANSPARENT(p) ((p) % 4 == 0)
 
@@ -171,6 +172,13 @@ static void render_pixel(Ppu* ppu)
 {
     int x = ppu->cycle - 1;
     int y = ppu->scanline;
+
+#if SKIP_BORDER_PIXELS
+    if (x < 10 || x >= 246)
+        return;
+    if (y < 10 || y >= 230)
+        return;
+#endif
 
     uint8_t bg_pixel = 0;
     if (ppu->mask_flags.show_background)
