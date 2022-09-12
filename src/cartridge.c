@@ -64,6 +64,10 @@ Cartridge* cartridge_load(const char* path)
     uint8_t flag_9  = raw.buffer[9];
     uint8_t flag_10 = raw.buffer[10];
 
+    // UNUSED, todo
+    (void)flag_9;
+    (void)flag_10;
+
     uint8_t mirror_bit1 = (flag_6 & MIRRORING_MASK) ? 1 : 0;
     uint8_t mirror_bit2 = (flag_6 & MIRROR_ALL_MASK) ? 1 : 0;
     cart->mirror = mirror_bit1 | (mirror_bit2 << 1);

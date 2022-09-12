@@ -18,9 +18,12 @@ set ( borzNES_src
     window.c
     game_window.c )
 
+set ( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Wall" )
+set ( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer -Wall" )
+
 if ( ASAN )
-    set ( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wall -fno-omit-frame-pointer -fsanitize=address,undefined" )
-    set ( CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -Wall -fno-omit-frame-pointer -fsanitize=address,undefined" )
+    set ( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address,undefined" )
+    set ( CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fsanitize=address,undefined" )
 endif ()
 
 add_executable ( main
@@ -33,4 +36,4 @@ add_custom_command (
         TARGET main POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
                 ${CMAKE_SOURCE_DIR}/../font/courier.ttf
-                ${CMAKE_CURRENT_BINARY_DIR}/courier.ttf)
+                ${CMAKE_CURRENT_BINARY_DIR}/courier.ttf )

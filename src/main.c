@@ -20,7 +20,6 @@ int main(int argc, char const* argv[])
 
     long            start;
     int             should_quit = 0;
-    int             old_frame   = 0;
     int             fast_freq   = 0;
     ControllerState p1, p2;
     p1.state = 0;
