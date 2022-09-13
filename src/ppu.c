@@ -11,7 +11,7 @@
 #include <string.h>
 
 #define PRINT_PPU_STATE    0
-#define SKIP_BORDER_PIXELS 0
+#define SKIP_BORDER_PIXELS 1
 
 #define IS_PIXEL_TRANSPARENT(p) ((p) % 4 == 0)
 
@@ -151,7 +151,7 @@ static void updated_nmi(Ppu* ppu)
     int trigger_nmi =
         (ppu->status_flags.in_vblank) && (ppu->ctrl_flags.trigger_nmi);
     if (trigger_nmi && !ppu->nmi_prev) {
-        ppu->nmi_delay = 15;
+        ppu->nmi_delay = 1;
     }
     ppu->nmi_prev = trigger_nmi;
 }
