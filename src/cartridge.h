@@ -13,6 +13,7 @@ typedef enum {
 
 typedef struct Cartridge {
     char*     fpath;
+    char*     sav_path;
     uint32_t  PRG_size;
     uint32_t  CHR_size;
     uint32_t  SRAM_size;
@@ -27,6 +28,9 @@ typedef struct Cartridge {
 
 Cartridge* cartridge_load(const char* path);
 void       cartridge_unload(Cartridge* cart);
+
+void cartridge_load_sav(Cartridge* cart);
+void cartridge_save_sav(Cartridge* cart);
 
 void cartridge_print(Cartridge* cart);
 

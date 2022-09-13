@@ -3,6 +3,7 @@
 #include "alloc.h"
 
 #include <stdio.h>
+#include <unistd.h>
 #include <string.h>
 
 #define HEADER_SIZE  16u
@@ -33,13 +34,35 @@ static Buffer read_file_raw(const char* path)
 
     rewind(fileptr);
 
-    uint8_t* buffer = malloc(filelen * sizeof(char));
+    uint8_t* buffer = malloc_or_fail(filelen * sizeof(char));
     if (fread(buffer, 1, filelen, fileptr) != filelen)
         panic("fread failed");
 
     fclose(fileptr);
 
     Buffer res = {.buffer = buffer, .size = filelen};
+    return res;
+}
+
+static void write_file_raw(const char* path, Buffer* data)
+{
+    FILE* fileptr = fopen(path, "wb");
+    if (fileptr == NULL)
+        panic("unable to open the file %s", path);
+
+    if (fwrite(data->buffer, 1, data->size, fileptr) != data->size)
+        panic("fwrite failed");
+
+    fclose(fileptr);
+}
+
+static char* get_sav_path(const char* fpath)
+{
+    size_t fpath_size = strlen(fpath);
+    char*  res        = calloc_or_fail(fpath_size + 4);
+    strcpy(res, fpath);
+    strcat(res, ".sav");
+
     return res;
 }
 
@@ -70,10 +93,11 @@ Cartridge* cartridge_load(const char* path)
 
     uint8_t mirror_bit1 = (flag_6 & MIRRORING_MASK) ? 1 : 0;
     uint8_t mirror_bit2 = (flag_6 & MIRROR_ALL_MASK) ? 1 : 0;
-    cart->mirror = mirror_bit1 | (mirror_bit2 << 1);
+    cart->mirror        = mirror_bit1 | (mirror_bit2 << 1);
 
-    cart->battery = (flag_6 & BATTERY_MASK) > 0;
-    cart->mapper  = (flag_6 >> 4) | (flag_7 & 0xf);
+    cart->battery  = (flag_6 & BATTERY_MASK) > 0;
+    cart->mapper   = (flag_6 >> 4) | (flag_7 & 0xf);
+    cart->sav_path = cart->battery ? get_sav_path(path) : NULL;
 
     if (flag_8 == 0)
         flag_8 = 1;
@@ -113,18 +137,48 @@ Cartridge* cartridge_load(const char* path)
     if (file_off != raw.size)
         panic("not a valid cartridge (unread data at the end)");
 
+    cartridge_load_sav(cart);
     free(raw.buffer);
     return cart;
 }
 
 void cartridge_unload(Cartridge* cart)
 {
+    cartridge_save_sav(cart);
+
     free(cart->trainer);
     free(cart->PRG);
     free(cart->CHR);
     free(cart->SRAM);
     free(cart->fpath);
+    free(cart->sav_path);
     free(cart);
+}
+
+void cartridge_load_sav(Cartridge* cart)
+{
+    if (!cart->sav_path)
+        return;
+
+    if (access(cart->sav_path, F_OK))
+        // The file does not exist
+        return;
+
+    Buffer ram = read_file_raw(cart->sav_path);
+    if (ram.size != cart->SRAM_size)
+        panic("invalid sav file");
+
+    memcpy(cart->SRAM, ram.buffer, ram.size);
+    free(ram.buffer);
+}
+
+void cartridge_save_sav(Cartridge* cart)
+{
+    if (!cart->sav_path)
+        return;
+
+    Buffer buf = {.buffer = cart->SRAM, .size = cart->SRAM_size};
+    write_file_raw(cart->sav_path, &buf);
 }
 
 void cartridge_print(Cartridge* cart)
