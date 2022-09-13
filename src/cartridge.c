@@ -90,7 +90,7 @@ Cartridge* cartridge_load(const char* path)
     cart->mirror        = mirror_bit1 | (mirror_bit2 << 1);
 
     cart->battery  = (flag_6 & BATTERY_MASK) > 0;
-    cart->mapper   = (flag_6 >> 4) | (flag_7 & 0xf);
+    cart->mapper   = (flag_6 >> 4) | (flag_7 & 0xf0);
     cart->sav_path = cart->battery ? get_sav_path(path) : NULL;
 
     if (flag_8 == 0)

@@ -8,6 +8,30 @@
 
 #include <string.h>
 
+#define GEN_SERIALIZER(TYPE)                                                   \
+    void TYPE##_serialize(void* _map, FILE* fout)                              \
+    {                                                                          \
+        TYPE*  map = (TYPE*)_map;                                              \
+        Buffer res = buf_malloc(sizeof(TYPE));                                 \
+        memcpy(res.buffer, map, res.size);                                     \
+        TYPE* map_cpy = (TYPE*)res.buffer;                                     \
+        map_cpy->cart = NULL;                                                  \
+        dump_buffer(&res, fout);                                               \
+        free(res.buffer);                                                      \
+    }
+#define GEN_DESERIALIZER(TYPE)                                                 \
+    void TYPE##_deserialize(void* _map, FILE* fin)                             \
+    {                                                                          \
+        Buffer buf = read_buffer(fin);                                         \
+        if (buf.size != sizeof(TYPE))                                          \
+            panic(#TYPE "_deserialize(): invalid buffer");                     \
+        TYPE* map      = (TYPE*)_map;                                          \
+        void* tmp_cart = map->cart;                                            \
+        memcpy(map, buf.buffer, buf.size);                                     \
+        map->cart = tmp_cart;                                                  \
+        free(buf.buffer);                                                      \
+    }
+
 static void generic_destroy(void* _map) { free(_map); }
 
 // MAPPER 000: NROM
@@ -64,33 +88,8 @@ static void NROM_write(void* _map, uint16_t addr, uint8_t value)
     }
 }
 
-void NROM_serialize(void* _map, FILE* fout)
-{
-    NROM* map = (NROM*)_map;
-
-    Buffer res = buf_malloc(sizeof(NROM));
-    memcpy(res.buffer, map, res.size);
-    NROM* map_cpy = (NROM*)res.buffer;
-    map_cpy->cart = NULL;
-
-    dump_buffer(&res, fout);
-    free(res.buffer);
-}
-
-void NROM_deserialize(void* _map, FILE* fin)
-{
-    Buffer buf = read_buffer(fin);
-    if (buf.size != sizeof(NROM))
-        panic("NROM_deserialize(): invalid buffer");
-
-    NROM* map = (NROM*)_map;
-
-    void* tmp_cart = map->cart;
-
-    memcpy(map, buf.buffer, buf.size);
-    map->cart = tmp_cart;
-    free(buf.buffer);
-}
+GEN_SERIALIZER(NROM)
+GEN_DESERIALIZER(NROM)
 
 // MAPPER 001: MMC1
 typedef struct MMC1 {
@@ -301,33 +300,8 @@ static void MMC1_write(void* _map, uint16_t addr, uint8_t value)
           value);
 }
 
-void MMC1_serialize(void* _map, FILE* fout)
-{
-    MMC1* map = (MMC1*)_map;
-
-    Buffer res = buf_malloc(sizeof(MMC1));
-    memcpy(res.buffer, map, res.size);
-    MMC1* map_cpy = (MMC1*)res.buffer;
-    map_cpy->cart = NULL;
-
-    dump_buffer(&res, fout);
-    free(res.buffer);
-}
-
-void MMC1_deserialize(void* _map, FILE* fin)
-{
-    Buffer buf = read_buffer(fin);
-    if (buf.size != sizeof(MMC1))
-        panic("MMC1_deserialize(): invalid buffer");
-
-    MMC1* map = (MMC1*)_map;
-
-    void* tmp_cart = map->cart;
-
-    memcpy(map, buf.buffer, buf.size);
-    map->cart = tmp_cart;
-    free(buf.buffer);
-}
+GEN_SERIALIZER(MMC1)
+GEN_DESERIALIZER(MMC1)
 
 // MAPPER 004: MMC3
 
@@ -514,32 +488,65 @@ static void MMC3_write(void* _map, uint16_t addr, uint8_t value)
           value);
 }
 
-void MMC3_serialize(void* _map, FILE* fout)
+GEN_SERIALIZER(MMC3)
+GEN_DESERIALIZER(MMC3)
+
+// MAPPER 007: AxROM
+
+typedef struct AxROM {
+    Cartridge* cart;
+    int32_t    prg_bank;
+} AxROM;
+
+static AxROM* AxROM_build(Cartridge* cart)
 {
-    MMC3* map = (MMC3*)_map;
-
-    Buffer res = buf_malloc(sizeof(MMC3));
-    memcpy(res.buffer, map, res.size);
-    MMC3* map_cpy = (MMC3*)res.buffer;
-    map_cpy->cart = NULL;
-
-    dump_buffer(&res, fout);
-    free(res.buffer);
+    AxROM* map = calloc_or_fail(sizeof(AxROM));
+    map->cart  = cart;
+    return map;
 }
 
-void MMC3_deserialize(void* _map, FILE* fin)
+static uint8_t AxROM_read(void* _map, uint16_t addr)
 {
-    Buffer buf = read_buffer(fin);
-    if (buf.size != sizeof(MMC3))
-        panic("MMC3_deserialize(): invalid buffer");
+    AxROM* map = (AxROM*)_map;
+    if (addr < 0x2000) {
+        return map->cart->CHR[addr];
+    }
+    if (addr >= 0x8000) {
+        int32_t idx = map->prg_bank * 0x8000 + (addr - 0x8000);
+        return map->cart->PRG[idx];
+    }
+    if (addr >= 0x6000) {
+        return map->cart->SRAM[addr - 0x6000];
+    }
 
-    MMC3* map = (MMC3*)_map;
-
-    void* tmp_cart = map->cart;
-    memcpy(map, buf.buffer, buf.size);
-    map->cart = tmp_cart;
-    free(buf.buffer);
+    panic("unexpected read @ 0x%04x in AxROM mapper", addr);
 }
+
+static void AxROM_write(void* _map, uint16_t addr, uint8_t value)
+{
+    AxROM* map = (AxROM*)_map;
+    if (addr < 0x2000) {
+        map->cart->CHR[addr] = value;
+        return;
+    }
+    if (addr >= 0x8000) {
+        map->prg_bank = value & 7;
+        if (value & 0x10)
+            map->cart->mirror = MIRROR_SINGLE1;
+        else
+            map->cart->mirror = MIRROR_SINGLE0;
+        return;
+    }
+    if (addr >= 0x6000) {
+        map->cart->SRAM[addr - 0x6000] = value;
+        return;
+    }
+
+    panic("unexpected write @ 0x%04x in AxROM mapper [0x%02x]", addr, value);
+}
+
+GEN_SERIALIZER(AxROM)
+GEN_DESERIALIZER(AxROM)
 
 // Polymorphic Mapper
 Mapper* mapper_build(Cartridge* cart)
@@ -582,10 +589,21 @@ Mapper* mapper_build(Cartridge* cart)
             map->deserialize = &MMC3_deserialize;
             break;
         }
+        case 7: {
+            AxROM* axrom     = AxROM_build(cart);
+            map->obj         = axrom;
+            map->name        = "AxROM";
+            map->step        = NULL;
+            map->read        = &AxROM_read;
+            map->write       = &AxROM_write;
+            map->destroy     = &generic_destroy;
+            map->serialize   = &AxROM_serialize;
+            map->deserialize = &AxROM_deserialize;
+            break;
+        }
         default:
             panic("unsupported mapper %u", cart->mapper);
     }
-
     return map;
 }
 
