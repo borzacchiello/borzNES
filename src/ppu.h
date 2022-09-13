@@ -2,10 +2,12 @@
 #define PPU_H
 
 #include <stdint.h>
+#include <stdio.h>
 
 struct GameWindow;
 struct System;
 struct Memory;
+struct Buffer;
 
 typedef struct PpuStatusFlags {
     union {
@@ -108,5 +110,8 @@ void ppu_reset(Ppu* ppu);
 
 const char* ppu_tostring(Ppu* ppu);
 const char* ppu_tostring_short(Ppu* ppu);
+
+void ppu_serialize(Ppu* ppu, FILE* ofile);
+void ppu_deserialize(Ppu* ppu, FILE* ifile);
 
 #endif

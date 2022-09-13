@@ -4,8 +4,21 @@
 #include "6502_cpu.h"
 #include "mapper.h"
 #include "ppu.h"
+#include "logging.h"
 
 #include <stdio.h>
+#include <unistd.h>
+#include <string.h>
+
+static char* get_state_path(const char* fpath)
+{
+    size_t fpath_size = strlen(fpath);
+    char*  res        = calloc_or_fail(fpath_size + 7);
+    strcpy(res, fpath);
+    strcat(res, ".state");
+
+    return res;
+}
 
 System* system_build(const char* rom_path)
 {
@@ -16,11 +29,12 @@ System* system_build(const char* rom_path)
     Cpu*       cpu  = cpu_build(sys);
     Ppu*       ppu  = ppu_build(sys);
 
-    sys->cart     = cart;
-    sys->mapper   = map;
-    sys->cpu      = cpu;
-    sys->ppu      = ppu;
-    sys->cpu_freq = CPU_1X_FREQ;
+    sys->cart            = cart;
+    sys->mapper          = map;
+    sys->cpu             = cpu;
+    sys->ppu             = ppu;
+    sys->cpu_freq        = CPU_1X_FREQ;
+    sys->state_save_path = get_state_path(rom_path);
 
     cpu_reset(cpu);
     ppu_reset(ppu);
@@ -33,6 +47,7 @@ void system_destroy(System* sys)
     mapper_destroy(sys->mapper);
     cpu_destroy(sys->cpu);
     ppu_destroy(sys->ppu);
+    free(sys->state_save_path);
     free(sys);
 }
 
@@ -80,4 +95,46 @@ const char* system_tostring(System* sys)
     sprintf(res, "NES [ %s (%s), PC @ 0x%04x ]", sys->cart->fpath,
             sys->mapper->name, sys->cpu->PC);
     return res;
+}
+
+void system_save_state(System* sys)
+{
+    FILE* fout = fopen(sys->state_save_path, "wb");
+    if (fout == NULL)
+        panic("unable to open the file %s", sys->state_save_path);
+
+    Buffer ram_state = {.buffer = (uint8_t*)&sys->RAM,
+                        .size   = sizeof(sys->RAM)};
+    dump_buffer(&ram_state, fout);
+
+    cartridge_serialize(sys->cart, fout);
+    cpu_serialize(sys->cpu, fout);
+    ppu_serialize(sys->ppu, fout);
+    mapper_serialize(sys->mapper, fout);
+
+    fclose(fout);
+}
+
+void system_load_state(System* sys)
+{
+    if (access(sys->state_save_path, F_OK))
+        // The file does not exist
+        return;
+
+    FILE* fin = fopen(sys->state_save_path, "rb");
+    if (fin == NULL)
+        panic("unable to open the file %s", sys->state_save_path);
+
+    Buffer ram_state = read_buffer(fin);
+    if (ram_state.size != sizeof(sys->RAM))
+        panic("system_load_state(): invalid buffer");
+    memcpy(sys->RAM, ram_state.buffer, ram_state.size);
+    free(ram_state.buffer);
+
+    cartridge_deserialize(sys->cart, fin);
+    cpu_deserialize(sys->cpu, fin);
+    ppu_deserialize(sys->ppu, fin);
+    mapper_deserialize(sys->mapper, fin);
+
+    fclose(fin);
 }

@@ -1052,3 +1052,33 @@ const char* cpu_tostring(Cpu* cpu)
             cpu->Y, cpu->Y);
     return res;
 }
+
+void cpu_serialize(Cpu* cpu, FILE* ofile)
+{
+    // NOTE: memory is not serialized.. It is fine for NES, but it does not work
+    // for standalone CPU builds
+    Buffer res = buf_calloc(sizeof(Cpu));
+
+    memcpy(res.buffer, cpu, res.size);
+    Cpu* cpu_cpy = (Cpu*)res.buffer;
+    cpu_cpy->sys = NULL;
+    cpu_cpy->mem = NULL;
+
+    dump_buffer(&res, ofile);
+    free(res.buffer);
+}
+
+void cpu_deserialize(Cpu* cpu, FILE* ifile)
+{
+    Buffer buf = read_buffer(ifile);
+    if (buf.size != sizeof(Cpu))
+        panic("cpu_deserialize(): invalid buffer");
+
+    void* tmp_sys = cpu->sys;
+    void* tmp_mem = cpu->mem;
+
+    memcpy(cpu, buf.buffer, buf.size);
+    cpu->sys = tmp_sys;
+    cpu->mem = tmp_mem;
+    free(buf.buffer);
+}

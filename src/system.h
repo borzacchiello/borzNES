@@ -36,6 +36,7 @@ typedef struct System {
     struct Ppu*       ppu;
     struct Cartridge* cart;
     struct Mapper*    mapper;
+    char*             state_save_path;
     uint8_t           RAM[2048];
     ControllerState   controller_state[2];
     uint8_t           controller_shift_reg[2];
@@ -56,5 +57,8 @@ uint8_t system_get_controller_val(System* sys, ControllerNum num);
 // It returns a local buffer that will be invalidated
 // if the function is called again
 const char* system_tostring(System* sys);
+
+void system_save_state(System* sys);
+void system_load_state(System* sys);
 
 #endif

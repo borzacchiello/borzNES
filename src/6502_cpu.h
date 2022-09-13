@@ -2,9 +2,11 @@
 #define CPU_H
 
 #include <stdint.h>
+#include <stdio.h>
 
 struct Memory;
 struct System;
+struct Buffer;
 
 typedef struct Cpu {
     struct System* sys;
@@ -44,5 +46,8 @@ uint16_t cpu_next_instr_address(Cpu* cpu, uint16_t addr);
 const char* cpu_disassemble(Cpu* cpu, uint16_t addr);
 const char* cpu_tostring(Cpu* cpu);
 const char* cpu_tostring_short(Cpu* cpu);
+
+void cpu_serialize(Cpu* cpu, FILE* ofile);
+void cpu_deserialize(Cpu* cpu, FILE* ifile);
 
 #endif

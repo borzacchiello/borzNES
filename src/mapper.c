@@ -6,6 +6,8 @@
 #include "system.h"
 #include "6502_cpu.h"
 
+#include <string.h>
+
 static void generic_destroy(void* _map) { free(_map); }
 
 // MAPPER 000: NROM
@@ -60,6 +62,34 @@ static void NROM_write(void* _map, uint16_t addr, uint8_t value)
         panic("unable to write at address 0x%04x from NROM mapper [0x%02x]",
               addr, value);
     }
+}
+
+void NROM_serialize(void* _map, FILE* fout)
+{
+    NROM* map = (NROM*)_map;
+
+    Buffer res = buf_malloc(sizeof(NROM));
+    memcpy(res.buffer, map, res.size);
+    NROM* map_cpy = (NROM*)res.buffer;
+    map_cpy->cart = NULL;
+
+    dump_buffer(&res, fout);
+    free(res.buffer);
+}
+
+void NROM_deserialize(void* _map, FILE* fin)
+{
+    Buffer buf = read_buffer(fin);
+    if (buf.size != sizeof(NROM))
+        panic("NROM_deserialize(): invalid buffer");
+
+    NROM* map = (NROM*)_map;
+
+    void* tmp_cart = map->cart;
+
+    memcpy(map, buf.buffer, buf.size);
+    map->cart = tmp_cart;
+    free(buf.buffer);
 }
 
 // MAPPER 001: MMC1
@@ -271,6 +301,34 @@ static void MMC1_write(void* _map, uint16_t addr, uint8_t value)
           value);
 }
 
+void MMC1_serialize(void* _map, FILE* fout)
+{
+    MMC1* map = (MMC1*)_map;
+
+    Buffer res = buf_malloc(sizeof(MMC1));
+    memcpy(res.buffer, map, res.size);
+    MMC1* map_cpy = (MMC1*)res.buffer;
+    map_cpy->cart = NULL;
+
+    dump_buffer(&res, fout);
+    free(res.buffer);
+}
+
+void MMC1_deserialize(void* _map, FILE* fin)
+{
+    Buffer buf = read_buffer(fin);
+    if (buf.size != sizeof(MMC1))
+        panic("MMC1_deserialize(): invalid buffer");
+
+    MMC1* map = (MMC1*)_map;
+
+    void* tmp_cart = map->cart;
+
+    memcpy(map, buf.buffer, buf.size);
+    map->cart = tmp_cart;
+    free(buf.buffer);
+}
+
 // MAPPER 004: MMC3
 
 typedef struct MMC3 {
@@ -456,39 +514,72 @@ static void MMC3_write(void* _map, uint16_t addr, uint8_t value)
           value);
 }
 
+void MMC3_serialize(void* _map, FILE* fout)
+{
+    MMC3* map = (MMC3*)_map;
+
+    Buffer res = buf_malloc(sizeof(MMC3));
+    memcpy(res.buffer, map, res.size);
+    MMC3* map_cpy = (MMC3*)res.buffer;
+    map_cpy->cart = NULL;
+
+    dump_buffer(&res, fout);
+    free(res.buffer);
+}
+
+void MMC3_deserialize(void* _map, FILE* fin)
+{
+    Buffer buf = read_buffer(fin);
+    if (buf.size != sizeof(MMC3))
+        panic("MMC3_deserialize(): invalid buffer");
+
+    MMC3* map = (MMC3*)_map;
+
+    void* tmp_cart = map->cart;
+    memcpy(map, buf.buffer, buf.size);
+    map->cart = tmp_cart;
+    free(buf.buffer);
+}
+
 // Polymorphic Mapper
 Mapper* mapper_build(Cartridge* cart)
 {
     Mapper* map = malloc_or_fail(sizeof(Mapper));
     switch (cart->mapper) {
         case 0: {
-            NROM* nrom   = NROM_build(cart);
-            map->obj     = nrom;
-            map->name    = "NROM";
-            map->step    = NULL;
-            map->read    = &NROM_read;
-            map->write   = &NROM_write;
-            map->destroy = &generic_destroy;
+            NROM* nrom       = NROM_build(cart);
+            map->obj         = nrom;
+            map->name        = "NROM";
+            map->step        = NULL;
+            map->read        = &NROM_read;
+            map->write       = &NROM_write;
+            map->destroy     = &generic_destroy;
+            map->serialize   = &NROM_serialize;
+            map->deserialize = &NROM_deserialize;
             break;
         }
         case 1: {
-            MMC1* mmc1   = MMC1_build(cart);
-            map->obj     = mmc1;
-            map->name    = "MMC1";
-            map->step    = NULL;
-            map->read    = &MMC1_read;
-            map->write   = &MMC1_write;
-            map->destroy = &generic_destroy;
+            MMC1* mmc1       = MMC1_build(cart);
+            map->obj         = mmc1;
+            map->name        = "MMC1";
+            map->step        = NULL;
+            map->read        = &MMC1_read;
+            map->write       = &MMC1_write;
+            map->destroy     = &generic_destroy;
+            map->serialize   = &MMC1_serialize;
+            map->deserialize = &MMC1_deserialize;
             break;
         }
         case 4: {
-            MMC3* mmc3   = MMC3_build(cart);
-            map->obj     = mmc3;
-            map->name    = "MMC3";
-            map->step    = &MMC3_step;
-            map->read    = &MMC3_read;
-            map->write   = &MMC3_write;
-            map->destroy = &generic_destroy;
+            MMC3* mmc3       = MMC3_build(cart);
+            map->obj         = mmc3;
+            map->name        = "MMC3";
+            map->step        = &MMC3_step;
+            map->read        = &MMC3_read;
+            map->write       = &MMC3_write;
+            map->destroy     = &generic_destroy;
+            map->serialize   = &MMC3_serialize;
+            map->deserialize = &MMC3_deserialize;
             break;
         }
         default:
@@ -518,4 +609,14 @@ void mapper_step(Mapper* map, System* sys)
 {
     if (map->step)
         map->step(map->obj, sys);
+}
+
+void mapper_serialize(Mapper* map, FILE* fout)
+{
+    return map->serialize(map->obj, fout);
+}
+
+void mapper_deserialize(Mapper* map, FILE* fin)
+{
+    map->deserialize(map->obj, fin);
 }

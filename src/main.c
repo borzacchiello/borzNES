@@ -44,6 +44,12 @@ int main(int argc, char const* argv[])
                         fast_freq     = !fast_freq;
                         sys->cpu_freq = fast_freq ? CPU_2X_FREQ : CPU_1X_FREQ;
                         break;
+                    case SDLK_F1:
+                        system_save_state(sys);
+                        break;
+                    case SDLK_F2:
+                        system_load_state(sys);
+                        break;
                     case SDLK_z:
                         p1.A = 1;
                         break;

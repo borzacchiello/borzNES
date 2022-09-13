@@ -2,7 +2,6 @@
 #include "logging.h"
 #include "alloc.h"
 
-#include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 
@@ -13,11 +12,6 @@
 #define BATTERY_MASK    (uint8_t)(1 << 1)
 #define TRAINER_MASK    (uint8_t)(1 << 2)
 #define MIRROR_ALL_MASK (uint8_t)(1 << 3)
-
-typedef struct {
-    uint8_t* buffer;
-    uint64_t size;
-} Buffer;
 
 static Buffer read_file_raw(const char* path)
 {
@@ -59,7 +53,7 @@ static void write_file_raw(const char* path, Buffer* data)
 static char* get_sav_path(const char* fpath)
 {
     size_t fpath_size = strlen(fpath);
-    char*  res        = calloc_or_fail(fpath_size + 4);
+    char*  res        = calloc_or_fail(fpath_size + 5);
     strcpy(res, fpath);
     strcat(res, ".sav");
 
@@ -193,4 +187,31 @@ void cartridge_print(Cartridge* cart)
                ? "horizontal"
                : (cart->mirror == MIRROR_VERTICAL ? "vertical" : "all"));
     printf("}\n");
+}
+
+void cartridge_serialize(Cartridge* cart, FILE* ofile)
+{
+    Buffer buf;
+    buf.buffer = cart->SRAM;
+    buf.size   = cart->SRAM_size;
+    dump_buffer(&buf, ofile);
+
+    buf.buffer = (uint8_t*)&cart->mirror;
+    buf.size   = sizeof(cart->mirror);
+    dump_buffer(&buf, ofile);
+}
+
+void cartridge_deserialize(Cartridge* cart, FILE* ifile)
+{
+    Buffer buf = read_buffer(ifile);
+    if (buf.size != cart->SRAM_size)
+        panic("cartridge_deserialize(): invalid buffer 1");
+    memcpy(cart->SRAM, buf.buffer, buf.size);
+    free(buf.buffer);
+
+    buf = read_buffer(ifile);
+    if (buf.size != sizeof(cart->mirror))
+        panic("cartridge_deserialize(): invalid buffer 2");
+    cart->mirror = *(Mirroring*)buf.buffer;
+    free(buf.buffer);
 }

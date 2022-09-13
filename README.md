@@ -2,7 +2,7 @@
 
 Yet another NES emulator, written just for fun :)
 
-No APU (audio) and no save (yet).
+No APU (audio) yet.
 
 ![screencast](img/screencast.gif)
 
@@ -34,11 +34,13 @@ The (hardcoded) keymappings for Player1 are the following:
 
 | action                           | key        |
 |----------------------------------|------------|
-| A                                |  Z         |
-| B                                |  X         |
+| A                                | Z          |
+| B                                | X          |
 | Start                            | Enter      |
 | Select                           | RightShift |
 | Up/Down/Left/Right               | ArrowKeys  |
+| Save State                       | F1         |
+| Load State                       | F2         |
 | Fast Forward Mode (2x CPU speed) | F          |
 | Change Nametable Palette         | P          |
 | Quit                             | Q          |

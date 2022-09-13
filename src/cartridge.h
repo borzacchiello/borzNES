@@ -2,6 +2,7 @@
 #define CARTRIDGE_H
 
 #include <stdint.h>
+#include <stdio.h>
 
 typedef enum {
     MIRROR_HORIZONTAL = 0,
@@ -33,5 +34,8 @@ void cartridge_load_sav(Cartridge* cart);
 void cartridge_save_sav(Cartridge* cart);
 
 void cartridge_print(Cartridge* cart);
+
+void cartridge_serialize(Cartridge* cart, FILE* ofile);
+void cartridge_deserialize(Cartridge* cart, FILE* ifile);
 
 #endif
