@@ -10,8 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define PRINT_PPU_STATE    0
-#define SKIP_BORDER_PIXELS 1
+#define PRINT_PPU_STATE 0
 
 #define IS_PIXEL_TRANSPARENT(p) ((p) % 4 == 0)
 
@@ -173,13 +172,6 @@ static void render_pixel(Ppu* ppu)
     int x = ppu->cycle - 1;
     int y = ppu->scanline;
 
-#if SKIP_BORDER_PIXELS
-    if (x < 10 || x >= 246)
-        return;
-    if (y < 10 || y >= 230)
-        return;
-#endif
-
     uint8_t bg_pixel = 0;
     if (ppu->mask_flags.show_background)
         bg_pixel =
@@ -209,8 +201,13 @@ static void render_pixel(Ppu* ppu)
     if (x < 8 && !ppu->mask_flags.show_left_sprites)
         sprite_pixel = 0;
 
-    uint8_t color;
-    if (IS_PIXEL_TRANSPARENT(bg_pixel) && IS_PIXEL_TRANSPARENT(sprite_pixel)) {
+    uint8_t color = 0;
+    if (!ppu->mask_flags.show_background && !ppu->mask_flags.show_sprites) {
+        //  https://www.nesdev.org/wiki/PPU_palettes#The_background_palette_hack
+        if (ppu->v >= 0x3F00 && ppu->v <= 0x3FFF)
+            color = memory_read(ppu->mem, ppu->v);
+    } else if (IS_PIXEL_TRANSPARENT(bg_pixel) &&
+               IS_PIXEL_TRANSPARENT(sprite_pixel)) {
         color = 0;
     } else if (IS_PIXEL_TRANSPARENT(bg_pixel) &&
                !IS_PIXEL_TRANSPARENT(sprite_pixel)) {
@@ -219,7 +216,27 @@ static void render_pixel(Ppu* ppu)
                IS_PIXEL_TRANSPARENT(sprite_pixel)) {
         color = bg_pixel;
     } else {
-        if (ppu->sprite_indexes[sprite_id] == 0 && x < 255)
+        /*
+        Sprite 0 hit does not happen:
+        1. If background or sprite rendering is disabled in PPUMASK ($2001)
+        2. At x=0 to x=7 if the left-side clipping window is enabled (if bit 2
+           or bit 1 of PPUMASK is 0).
+        3. At x=255, for an obscure reason related to the pixel pipeline.
+        4. At any pixel where the background or sprite pixel is transparent
+           (2-bit color index from the CHR pattern is %00).
+        5. If sprite 0 hit has already occurred this frame.
+        */
+        uint8_t must_set_zero_hit = ppu->sprite_indexes[sprite_id] == 0;
+        must_set_zero_hit =
+            must_set_zero_hit &&
+            (ppu->mask_flags.show_background && ppu->mask_flags.show_sprites);
+        must_set_zero_hit =
+            must_set_zero_hit &&
+            !((x >= 1 && x <= 8) && (ppu->mask_flags.show_left_sprites ||
+                                     ppu->mask_flags.show_left_background));
+        must_set_zero_hit = must_set_zero_hit && x != 255;
+
+        if (must_set_zero_hit)
             ppu->status_flags.sprite_zero_hit = 1;
 
         if (ppu->sprite_priorities[sprite_id] == 0)
@@ -350,10 +367,8 @@ void ppu_step(Ppu* ppu)
     int fetch_cycle     = pre_fetch_cycle || visible_cycle;
 
     // RENDERING
-    if (rendering_enabled) {
-        if (visible_line && visible_cycle) {
-            render_pixel(ppu);
-        }
+    if (visible_line && visible_cycle) {
+        render_pixel(ppu);
     }
 
     // BACKGROUND
@@ -733,7 +748,7 @@ void ppu_write_register(Ppu* ppu, uint16_t addr, uint8_t value)
         return;
     }
 
-    panic("ppu: invalid write to 0x%04x [0x%02x]", addr, value);
+    warning("ppu: invalid write to 0x%04x [0x%02x]", addr, value);
 }
 
 const char* ppu_tostring(Ppu* ppu)

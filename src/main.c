@@ -33,6 +33,18 @@ int main(int argc, char const* argv[])
                 break;
             } else if (e.type == SDL_KEYDOWN) {
                 switch (e.key.keysym.sym) {
+#ifdef DEBUG_MODE
+                    case SDLK_i: {
+                        system_step(sys);
+                        break;
+                    }
+                    case SDLK_o: {
+                        uint32_t old_frame = sys->ppu->frame;
+                        while (sys->ppu->frame == old_frame)
+                            system_step(sys);
+                        break;
+                    }
+#endif
                     case SDLK_q:
                         should_quit = 1;
                         break;
@@ -107,7 +119,9 @@ int main(int argc, char const* argv[])
             system_update_controller(sys, P2, p2);
         }
 
+#ifndef DEBUG_MODE
         system_step_ms(sys, get_timestamp_milliseconds() - start);
+#endif
     }
 
     gamewindow_destroy(gw);

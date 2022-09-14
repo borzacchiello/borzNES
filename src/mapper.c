@@ -6,7 +6,10 @@
 #include "system.h"
 #include "6502_cpu.h"
 
+#include <assert.h>
 #include <string.h>
+
+// http://tuxnes.sourceforge.net/mappers-0.80.txt
 
 #define GEN_SERIALIZER(TYPE)                                                   \
     void TYPE##_serialize(void* _map, FILE* fout)                              \
@@ -33,6 +36,30 @@
     }
 
 static void generic_destroy(void* _map) { free(_map); }
+
+static int32_t calc_prg_bank_offset(Cartridge* cart, int32_t idx,
+                                    uint32_t bank_size)
+{
+    assert(cart->PRG_size % bank_size == 0 && "incorrect PRG bank_size");
+
+    idx %= cart->PRG_size / bank_size;
+    int32_t off = idx * bank_size;
+    if (off < 0)
+        off += cart->PRG_size;
+    return off;
+}
+
+static int32_t calc_chr_bank_offset(Cartridge* cart, int32_t idx,
+                                    uint32_t bank_size)
+{
+    assert(cart->CHR_size % bank_size == 0 && "incorrect CHR bank_size");
+
+    idx %= cart->CHR_size / bank_size;
+    int32_t off = idx * bank_size;
+    if (off < 0)
+        off += cart->CHR_size;
+    return off;
+}
 
 // MAPPER 000: NROM
 typedef struct NROM {
@@ -105,40 +132,14 @@ typedef struct MMC1 {
     int32_t    chr_offsets[2];
 } MMC1;
 
-static int32_t MMC_calc_prg_bank_offset(Cartridge* cart, int32_t idx,
-                                        uint32_t page_size)
-{
-    if (idx >= 0x80)
-        idx -= 0x100;
-
-    idx %= cart->PRG_size / page_size;
-    int32_t off = idx * page_size;
-    if (off < 0)
-        off += cart->PRG_size;
-    return off;
-}
-
-static int32_t MMC_calc_chr_bank_offset(Cartridge* cart, int32_t idx,
-                                        uint32_t page_size)
-{
-    if (idx >= 0x80)
-        idx -= 0x100;
-
-    idx %= cart->CHR_size / page_size;
-    int32_t off = idx * page_size;
-    if (off < 0)
-        off += cart->CHR_size;
-    return off;
-}
-
 static inline int32_t MMC1_calc_prg_bank_offset(MMC1* map, int32_t idx)
 {
-    return MMC_calc_prg_bank_offset(map->cart, idx, 0x4000);
+    return calc_prg_bank_offset(map->cart, idx, 0x4000);
 }
 
 static inline int32_t MMC1_calc_chr_bank_offset(MMC1* map, int32_t idx)
 {
-    return MMC_calc_chr_bank_offset(map->cart, idx, 0x1000);
+    return calc_chr_bank_offset(map->cart, idx, 0x1000);
 }
 
 static MMC1* MMC1_build(Cartridge* cart)
@@ -320,12 +321,12 @@ typedef struct MMC3 {
 
 static inline int32_t MMC3_calc_prg_bank_offset(MMC3* map, int32_t idx)
 {
-    return MMC_calc_prg_bank_offset(map->cart, idx, 0x2000);
+    return calc_prg_bank_offset(map->cart, idx, 0x2000);
 }
 
 static inline int32_t MMC3_calc_chr_bank_offset(MMC3* map, int32_t idx)
 {
-    return MMC_calc_chr_bank_offset(map->cart, idx, 0x0400);
+    return calc_chr_bank_offset(map->cart, idx, 0x0400);
 }
 
 static MMC3* MMC3_build(Cartridge* cart)
@@ -548,6 +549,80 @@ static void AxROM_write(void* _map, uint16_t addr, uint8_t value)
 GEN_SERIALIZER(AxROM)
 GEN_DESERIALIZER(AxROM)
 
+// MAPPER 071
+
+typedef struct Map071 {
+    Cartridge* cart;
+    int32_t    prg_bank;
+} Map071;
+
+static Map071* Map071_build(Cartridge* cart)
+{
+    Map071* map   = malloc_or_fail(sizeof(Map071));
+    map->cart     = cart;
+    map->prg_bank = 0;
+    return map;
+}
+
+static inline int32_t Map071_calc_prg_bank_offset(Map071* map, int32_t idx)
+{
+    return calc_prg_bank_offset(map->cart, idx, 0x4000);
+}
+
+static uint8_t Map071_read(void* _map, uint16_t addr)
+{
+    Map071* map = (Map071*)_map;
+    if (addr < 0x2000) {
+        return map->cart->CHR[addr];
+    }
+    if (addr >= 0xC000) {
+        uint32_t base = Map071_calc_prg_bank_offset(map, -1);
+        uint32_t off  = addr - 0xC000;
+        return map->cart->PRG[base + off];
+    }
+    if (addr >= 0x8000) {
+        uint32_t base = Map071_calc_prg_bank_offset(map, map->prg_bank);
+        uint32_t off  = addr - 0x8000;
+        return map->cart->PRG[base + off];
+    }
+    if (addr >= 0x6000) {
+        return map->cart->SRAM[addr - 0x6000];
+    }
+
+    panic("unexpected read @ 0x%04x in Map071 mapper", addr);
+}
+
+static void Map071_write(void* _map, uint16_t addr, uint8_t value)
+{
+    Map071* map = (Map071*)_map;
+    if (addr < 0x2000) {
+        map->cart->CHR[addr] = value;
+        return;
+    }
+    if (addr >= 0xC000) {
+        map->prg_bank = value;
+        return;
+    }
+    if (addr >= 0x8000) {
+        if ((addr & 0xF000) == 0x9000) {
+            if ((value >> 4) & 1)
+                map->cart->mirror = MIRROR_SINGLE1;
+            else
+                map->cart->mirror = MIRROR_SINGLE0;
+        }
+        return;
+    }
+    if (addr >= 0x6000) {
+        map->cart->SRAM[addr - 0x6000] = value;
+        return;
+    }
+
+    panic("unexpected write @ 0x%04x in Map071 mapper [0x%02x]", addr, value);
+}
+
+GEN_SERIALIZER(Map071)
+GEN_DESERIALIZER(Map071)
+
 // Polymorphic Mapper
 Mapper* mapper_build(Cartridge* cart)
 {
@@ -599,6 +674,18 @@ Mapper* mapper_build(Cartridge* cart)
             map->destroy     = &generic_destroy;
             map->serialize   = &AxROM_serialize;
             map->deserialize = &AxROM_deserialize;
+            break;
+        }
+        case 71: {
+            Map071* map071   = Map071_build(cart);
+            map->obj         = map071;
+            map->name        = "Map071";
+            map->step        = NULL;
+            map->read        = &Map071_read;
+            map->write       = &Map071_write;
+            map->destroy     = &generic_destroy;
+            map->serialize   = &Map071_serialize;
+            map->deserialize = &Map071_deserialize;
             break;
         }
         default:
