@@ -10,7 +10,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#define PRINT_PPU_STATE 0
+#define SKIP_BORDER_PIXELS 1
+#define PRINT_PPU_STATE    0
 
 #define IS_PIXEL_TRANSPARENT(p) ((p) % 4 == 0)
 
@@ -245,6 +246,12 @@ static void render_pixel(Ppu* ppu)
             color = bg_pixel;
     }
 
+#if SKIP_BORDER_PIXELS
+    if (x < 10 || x >= 246)
+        return;
+    if (y < 10 || y >= 230)
+        return;
+#endif
     uint32_t rgb = palette_colors[memory_read(ppu->mem, 0x3F00u + color)];
     gamewindow_set_pixel(ppu->gw, x, y, rgb);
 }
