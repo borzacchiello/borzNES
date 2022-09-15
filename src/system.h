@@ -3,8 +3,9 @@
 
 #include <stdint.h>
 
-#define CPU_1X_FREQ 1789773l
-#define CPU_2X_FREQ 3579546l
+#define CPU_0_5X_FREQ 894886l
+#define CPU_2X_FREQ   3579546l
+#define CPU_1X_FREQ   1789773l
 
 struct Cpu;
 struct Ppu;

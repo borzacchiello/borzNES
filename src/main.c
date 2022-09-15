@@ -20,7 +20,7 @@ int main(int argc, char const* argv[])
 
     long            start;
     int             should_quit = 0;
-    int             fast_freq   = 0;
+    int             fast_freq = 0, slow_freq = 0;
     ControllerState p1, p2;
     p1.state = 0;
     p2.state = 0;
@@ -53,8 +53,14 @@ int main(int argc, char const* argv[])
                             (gw->patterntab_palette_idx + 1) % 8;
                         break;
                     case SDLK_f:
+                        slow_freq     = 0;
                         fast_freq     = !fast_freq;
                         sys->cpu_freq = fast_freq ? CPU_2X_FREQ : CPU_1X_FREQ;
+                        break;
+                    case SDLK_g:
+                        fast_freq     = 0;
+                        slow_freq     = !slow_freq;
+                        sys->cpu_freq = slow_freq ? CPU_0_5X_FREQ : CPU_1X_FREQ;
                         break;
                     case SDLK_F1:
                         system_save_state(sys);

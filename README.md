@@ -42,6 +42,7 @@ The (hardcoded) keymappings for Player1 are the following:
 | Save State                       | F1         |
 | Load State                       | F2         |
 | Fast Forward Mode (2x CPU speed) | F          |
+| Slow Mode (0.5x CPU speed)       | G          |
 | Change Nametable Palette         | P          |
 | Quit                             | Q          |
 
