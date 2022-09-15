@@ -492,6 +492,79 @@ static void MMC3_write(void* _map, uint16_t addr, uint8_t value)
 GEN_SERIALIZER(MMC3)
 GEN_DESERIALIZER(MMC3)
 
+// MAPPER 003: CNROM
+
+typedef struct CNROM {
+    Cartridge* cart;
+    int32_t    chr_bank;
+} CNROM;
+
+static CNROM* CNROM_build(Cartridge* cart)
+{
+    CNROM* map = calloc_or_fail(sizeof(CNROM));
+    map->cart  = cart;
+    return map;
+}
+
+static inline int32_t CNROM_calc_prg_bank_offset(CNROM* map, int32_t idx)
+{
+    return calc_prg_bank_offset(map->cart, idx, 0x4000);
+}
+
+static inline int32_t CNROM_calc_chr_bank_offset(CNROM* map, int32_t idx)
+{
+    return calc_chr_bank_offset(map->cart, idx, 0x2000);
+}
+
+static uint8_t CNROM_read(void* _map, uint16_t addr)
+{
+    CNROM* map = (CNROM*)_map;
+    if (addr < 0x2000) {
+        int32_t base = CNROM_calc_chr_bank_offset(map, map->chr_bank);
+        int32_t off  = addr;
+        return map->cart->CHR[base + off];
+    }
+    if (addr >= 0xC000) {
+        int32_t base = CNROM_calc_prg_bank_offset(map, -1);
+        int32_t off  = addr - 0xC000;
+        return map->cart->PRG[base + off];
+    }
+    if (addr >= 0x8000) {
+        int32_t base = 0;
+        int32_t off  = addr - 0x8000;
+        return map->cart->PRG[base + off];
+    }
+    if (addr >= 0x6000) {
+        return map->cart->SRAM[addr - 0x6000];
+    }
+
+    panic("unexpected read @ 0x%04x in CNROM mapper", addr);
+}
+
+static void CNROM_write(void* _map, uint16_t addr, uint8_t value)
+{
+    CNROM* map = (CNROM*)_map;
+    if (addr < 0x2000) {
+        int32_t base = CNROM_calc_chr_bank_offset(map, map->chr_bank);
+        int32_t off  = addr;
+        map->cart->CHR[base + off] = value;
+        return;
+    }
+    if (addr >= 0x8000) {
+        map->chr_bank = value & 3;
+        return;
+    }
+    if (addr >= 0x6000) {
+        map->cart->SRAM[addr - 0x6000] = value;
+        return;
+    }
+
+    panic("unexpected write @ 0x%04x in CNROM mapper [0x%02x]", addr, value);
+}
+
+GEN_SERIALIZER(CNROM)
+GEN_DESERIALIZER(CNROM)
+
 // MAPPER 007: AxROM
 
 typedef struct AxROM {
@@ -628,7 +701,8 @@ Mapper* mapper_build(Cartridge* cart)
 {
     Mapper* map = malloc_or_fail(sizeof(Mapper));
     switch (cart->mapper) {
-        case 0: {
+        case 0:
+        case 2: {
             NROM* nrom       = NROM_build(cart);
             map->obj         = nrom;
             map->name        = "NROM";
@@ -650,6 +724,18 @@ Mapper* mapper_build(Cartridge* cart)
             map->destroy     = &generic_destroy;
             map->serialize   = &MMC1_serialize;
             map->deserialize = &MMC1_deserialize;
+            break;
+        }
+        case 3: {
+            CNROM* cnrom     = CNROM_build(cart);
+            map->obj         = cnrom;
+            map->name        = "CNROM";
+            map->step        = NULL;
+            map->read        = &CNROM_read;
+            map->write       = &CNROM_write;
+            map->destroy     = &generic_destroy;
+            map->serialize   = &CNROM_serialize;
+            map->deserialize = &CNROM_deserialize;
             break;
         }
         case 4: {

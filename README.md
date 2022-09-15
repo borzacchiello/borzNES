@@ -47,4 +47,4 @@ The (hardcoded) keymappings for Player1 are the following:
 
 ### Implemented Mappers
 
-NROM(000), MMC1(001), MMC3(004), AxROM(007), Camerica(071)
+NROM(000), MMC1(001), NROM(003), MMC3(004), AxROM(007), Camerica(071)
