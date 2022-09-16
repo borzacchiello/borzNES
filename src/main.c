@@ -11,7 +11,7 @@
 
 #define ENABLE_REWIND   1
 #define REWIND_BUF_SIZE 100
-#define REWIND_DIR      "/dev/shm/borznes"
+#define REWIND_DIR      "/tmp/borznes"
 
 typedef enum { NORMAL_MODE, DEBUG_MODE, REWIND_MODE } EmulationMode;
 
