@@ -208,15 +208,18 @@ void gamewindow_draw(GameWindow* gw)
 
 #if SHOW_FPS
     static char fps_str[32];
-    memset(fps_str, 0, sizeof(fps_str));
+    static int  show_fps_counter = 0;
+    if (++show_fps_counter == 30) {
+        show_fps_counter = 0;
+        memset(fps_str, 0, sizeof(fps_str));
 
-    long   dt  = get_timestamp_milliseconds() - g_prev_timestamp;
-    double fps = 1000.0l / dt;
-    sprintf(fps_str, "FPS: %.03lf", fps);
+        long   dt  = get_timestamp_milliseconds() - g_prev_timestamp;
+        double fps = 1000.0l / dt;
+        sprintf(fps_str, "FPS: %.03lf", fps);
+    }
+    g_prev_timestamp = get_timestamp_milliseconds();
     window_draw_text(gw->win, gw->text_top_padding, gw->text_col_off,
                      color_white, fps_str);
-
-    g_prev_timestamp = get_timestamp_milliseconds();
 #endif
 
 #if SHOW_CPU_INFO
