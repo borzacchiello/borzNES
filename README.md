@@ -43,6 +43,10 @@ The (hardcoded) keymappings for Player1 are the following:
 | Load State                       | F2         |
 | Fast Forward Mode (2x CPU speed) | F          |
 | Slow Mode (0.5x CPU speed)       | G          |
+| Rewind (hold)                    | R          |
+| Enter Debug Mode                 | D          |
+| (in Debug mode) step CPU         | I          |
+| (in Debug mode) step PPU frame   | O          |
 | Change Nametable Palette         | P          |
 | Quit                             | Q          |
 

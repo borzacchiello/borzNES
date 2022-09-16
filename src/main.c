@@ -5,8 +5,56 @@
 #include "memory.h"
 #include "ppu.h"
 
-#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
+
+#define ENABLE_REWIND   1
+#define REWIND_BUF_SIZE 100
+#define REWIND_DIR      "/dev/shm/borznes"
+
+typedef enum { NORMAL_MODE, DEBUG_MODE, REWIND_MODE } EmulationMode;
+
+static int  rewind_num_states = 0;
+static int  rewind_id         = 0;
+static char rewind_tmp_path[128];
+
+void init_rewind()
+{
+    struct stat st = {0};
+    if (stat(REWIND_DIR, &st) == -1) {
+        mkdir(REWIND_DIR, 0700);
+    }
+}
+
+void save_rewind_state(System* sys)
+{
+    memset(rewind_tmp_path, 0, sizeof(rewind_tmp_path));
+
+    sprintf(rewind_tmp_path, REWIND_DIR "/%03u.sav", rewind_id);
+    system_save_state(sys, rewind_tmp_path);
+
+    rewind_id = (rewind_id + 1) % REWIND_BUF_SIZE;
+    if (rewind_num_states < REWIND_BUF_SIZE)
+        rewind_num_states++;
+}
+
+int load_rewind_state(System* sys)
+{
+    if (rewind_num_states == 0)
+        return 0;
+
+    memset(rewind_tmp_path, 0, sizeof(rewind_tmp_path));
+
+    if (--rewind_id < 0)
+        rewind_id = REWIND_BUF_SIZE - 1;
+    rewind_num_states--;
+
+    sprintf(rewind_tmp_path, REWIND_DIR "/%03u.sav", rewind_id);
+    system_load_state(sys, rewind_tmp_path);
+
+    return 1;
+}
 
 int main(int argc, char const* argv[])
 {
@@ -16,11 +64,12 @@ int main(int argc, char const* argv[])
     System*     sys = system_build(argv[1]);
     GameWindow* gw  = gamewindow_build(sys);
 
+    init_rewind();
     gamewindow_draw(gw);
 
-    long            start;
-    int             should_quit = 0;
-    int             fast_freq = 0, slow_freq = 0;
+    EmulationMode   mode = NORMAL_MODE;
+    long            start, last_rewind_timestamp = 0;
+    int             should_quit = 0, fast_freq = 0, slow_freq = 0;
     ControllerState p1, p2;
     p1.state = 0;
     p2.state = 0;
@@ -33,18 +82,34 @@ int main(int argc, char const* argv[])
                 break;
             } else if (e.type == SDL_KEYDOWN) {
                 switch (e.key.keysym.sym) {
-#ifdef DEBUG_MODE
+                    // DEBUG MODE KEYS
                     case SDLK_i: {
-                        system_step(sys);
+                        // step one CPU instruction
+                        if (mode == DEBUG_MODE) {
+                            system_step(sys);
+                            gamewindow_draw(gw);
+                        }
                         break;
                     }
                     case SDLK_o: {
-                        uint32_t old_frame = sys->ppu->frame;
-                        while (sys->ppu->frame == old_frame)
-                            system_step(sys);
+                        // step one PPU frame
+                        if (mode == DEBUG_MODE) {
+                            uint32_t old_frame = sys->ppu->frame;
+                            while (sys->ppu->frame == old_frame)
+                                system_step(sys);
+                            gamewindow_draw(gw);
+                        }
                         break;
                     }
-#endif
+                    case SDLK_d: {
+                        // toggle debug mode
+                        if (mode == NORMAL_MODE)
+                            mode = DEBUG_MODE;
+                        else if (mode == DEBUG_MODE)
+                            mode = NORMAL_MODE;
+                        break;
+                    }
+                    // UTILS
                     case SDLK_q:
                         should_quit = 1;
                         break;
@@ -63,11 +128,18 @@ int main(int argc, char const* argv[])
                         sys->cpu_freq = slow_freq ? CPU_0_5X_FREQ : CPU_1X_FREQ;
                         break;
                     case SDLK_F1:
-                        system_save_state(sys);
+                        system_save_state(sys, sys->state_save_path);
                         break;
                     case SDLK_F2:
-                        system_load_state(sys);
+                        system_load_state(sys, sys->state_save_path);
                         break;
+                        // REWIND
+#if ENABLE_REWIND
+                    case SDLK_r:
+                        mode = REWIND_MODE;
+                        break;
+#endif
+                    // GAME KEYBINDINGS
                     case SDLK_z:
                         p1.A = 1;
                         break;
@@ -95,6 +167,10 @@ int main(int argc, char const* argv[])
                 }
             } else if (e.type == SDL_KEYUP) {
                 switch (e.key.keysym.sym) {
+                    // REWIND
+                    case SDLK_r:
+                        mode = NORMAL_MODE;
+                        break;
                     case SDLK_z:
                         p1.A = 0;
                         break;
@@ -125,8 +201,27 @@ int main(int argc, char const* argv[])
             system_update_controller(sys, P2, p2);
         }
 
-#ifndef DEBUG_MODE
-        system_step_ms(sys, get_timestamp_milliseconds() - start);
+        long end_timestamp = get_timestamp_milliseconds();
+        if (mode == NORMAL_MODE) {
+            system_step_ms(sys, end_timestamp - start);
+#if ENABLE_REWIND
+            if (end_timestamp - last_rewind_timestamp > 500) {
+                last_rewind_timestamp = end_timestamp;
+                save_rewind_state(sys);
+            }
+#endif
+        }
+#if ENABLE_REWIND
+        if (mode == REWIND_MODE) {
+            if (end_timestamp - last_rewind_timestamp > 500) {
+                last_rewind_timestamp = end_timestamp;
+                if (load_rewind_state(sys)) {
+                    int old_frame = sys->ppu->frame;
+                    while (sys->ppu->frame != old_frame + 2)
+                        system_step(sys);
+                }
+            }
+        }
 #endif
     }
 

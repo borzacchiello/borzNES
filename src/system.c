@@ -97,11 +97,11 @@ const char* system_tostring(System* sys)
     return res;
 }
 
-void system_save_state(System* sys)
+void system_save_state(System* sys, const char* path)
 {
-    FILE* fout = fopen(sys->state_save_path, "wb");
+    FILE* fout = fopen(path, "wb");
     if (fout == NULL)
-        panic("unable to open the file %s", sys->state_save_path);
+        panic("unable to open the file %s", path);
 
     Buffer ram_state = {.buffer = (uint8_t*)&sys->RAM,
                         .size   = sizeof(sys->RAM)};
@@ -115,15 +115,15 @@ void system_save_state(System* sys)
     fclose(fout);
 }
 
-void system_load_state(System* sys)
+void system_load_state(System* sys, const char* path)
 {
-    if (access(sys->state_save_path, F_OK))
+    if (access(path, F_OK))
         // The file does not exist
         return;
 
-    FILE* fin = fopen(sys->state_save_path, "rb");
+    FILE* fin = fopen(path, "rb");
     if (fin == NULL)
-        panic("unable to open the file %s", sys->state_save_path);
+        panic("unable to open the file %s", path);
 
     Buffer ram_state = read_buffer(fin);
     if (ram_state.size != sizeof(sys->RAM))

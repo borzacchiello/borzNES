@@ -59,7 +59,7 @@ uint8_t system_get_controller_val(System* sys, ControllerNum num);
 // if the function is called again
 const char* system_tostring(System* sys);
 
-void system_save_state(System* sys);
-void system_load_state(System* sys);
+void system_save_state(System* sys, const char* path);
+void system_load_state(System* sys, const char* path);
 
 #endif
