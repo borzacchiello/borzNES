@@ -14,13 +14,8 @@
 #define GEN_SERIALIZER(TYPE)                                                   \
     void TYPE##_serialize(void* _map, FILE* fout)                              \
     {                                                                          \
-        TYPE*  map = (TYPE*)_map;                                              \
-        Buffer res = buf_malloc(sizeof(TYPE));                                 \
-        memcpy(res.buffer, map, res.size);                                     \
-        TYPE* map_cpy = (TYPE*)res.buffer;                                     \
-        map_cpy->cart = NULL;                                                  \
+        Buffer res = {.buffer = (uint8_t*)_map, .size = sizeof(TYPE)};         \
         dump_buffer(&res, fout);                                               \
-        free(res.buffer);                                                      \
     }
 #define GEN_DESERIALIZER(TYPE)                                                 \
     void TYPE##_deserialize(void* _map, FILE* fin)                             \

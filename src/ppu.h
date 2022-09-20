@@ -91,9 +91,8 @@ typedef struct Ppu {
     PpuCtrlFlags   ctrl_flags;
     PpuMaskFlags   mask_flags;
 
-    uint32_t flags;
-    uint8_t  bus_content;
-    uint8_t  buffered_ppudata;
+    uint8_t bus_content;
+    uint8_t buffered_ppudata;
 } Ppu;
 
 extern uint32_t palette_colors[64];

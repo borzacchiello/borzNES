@@ -13,17 +13,25 @@ typedef struct Cpu {
     struct Memory* mem;
     uint16_t       PC; // program counter
     uint8_t        SP; // stack pointer
+
     // 8bit regs
     uint8_t A, X, Y;
+
     // flags
-    uint8_t C; // carry
-    uint8_t Z; // zero
-    uint8_t I; // interrupt disable
-    uint8_t D; // decimal mode
-    uint8_t B; // break command
-    uint8_t U; // unused
-    uint8_t V; // overflow
-    uint8_t N; // negative
+    union {
+        struct {
+            uint8_t C : 1; // carry
+            uint8_t Z : 1; // zero
+            uint8_t I : 1; // interrupt disable
+            uint8_t D : 1; // decimal mode
+            uint8_t B : 1; // break command
+            uint8_t U : 1; // unused
+            uint8_t V : 1; // overflow
+            uint8_t N : 1; // negative
+        };
+        uint8_t flags;
+    };
+
     // utils
     uint64_t cycles;
     uint8_t  interrupt;

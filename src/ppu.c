@@ -792,16 +792,8 @@ const char* ppu_tostring_short(Ppu* ppu)
 
 void ppu_serialize(Ppu* ppu, FILE* ofile)
 {
-    Buffer res = buf_calloc(sizeof(Ppu));
-
-    memcpy(res.buffer, ppu, res.size);
-    Ppu* ppu_cpy = (Ppu*)res.buffer;
-    ppu_cpy->sys = NULL;
-    ppu_cpy->mem = NULL;
-    ppu_cpy->gw  = NULL;
-
+    Buffer res = {.buffer = (uint8_t*)ppu, .size = sizeof(Ppu)};
     dump_buffer(&res, ofile);
-    free(res.buffer);
 }
 
 void ppu_deserialize(Ppu* ppu, FILE* ifile)

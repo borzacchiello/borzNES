@@ -196,6 +196,10 @@ void cartridge_serialize(Cartridge* cart, FILE* ofile)
     buf.size   = cart->SRAM_size;
     dump_buffer(&buf, ofile);
 
+    buf.buffer = cart->CHR;
+    buf.size   = cart->CHR_size;
+    dump_buffer(&buf, ofile);
+
     buf.buffer = (uint8_t*)&cart->mirror;
     buf.size   = sizeof(cart->mirror);
     dump_buffer(&buf, ofile);
@@ -205,13 +209,19 @@ void cartridge_deserialize(Cartridge* cart, FILE* ifile)
 {
     Buffer buf = read_buffer(ifile);
     if (buf.size != cart->SRAM_size)
-        panic("cartridge_deserialize(): invalid buffer 1");
+        panic("cartridge_deserialize(): invalid buffer SRAM");
     memcpy(cart->SRAM, buf.buffer, buf.size);
     free(buf.buffer);
 
     buf = read_buffer(ifile);
+    if (buf.size != cart->CHR_size)
+        panic("cartridge_deserialize(): invalid buffer CHR");
+    memcpy(cart->CHR, buf.buffer, buf.size);
+    free(buf.buffer);
+
+    buf = read_buffer(ifile);
     if (buf.size != sizeof(cart->mirror))
-        panic("cartridge_deserialize(): invalid buffer 2");
+        panic("cartridge_deserialize(): invalid buffer Mirror");
     cart->mirror = *(Mirroring*)buf.buffer;
     free(buf.buffer);
 }

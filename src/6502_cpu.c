@@ -128,32 +128,6 @@ typedef struct {
 
 typedef void (*opcode_handler)(Cpu*, HandlerData*);
 
-static uint8_t pack_flags(Cpu* cpu)
-{
-    uint8_t res = 0;
-    res |= cpu->C;
-    res |= cpu->Z << 1;
-    res |= cpu->I << 2;
-    res |= cpu->D << 3;
-    res |= cpu->B << 4;
-    res |= cpu->U << 5;
-    res |= cpu->V << 6;
-    res |= cpu->N << 7;
-    return res;
-}
-
-static void unpack_flags(Cpu* cpu, uint8_t flags)
-{
-    cpu->C = flags & 1;
-    cpu->Z = (flags >> 1) & 1;
-    cpu->I = (flags >> 2) & 1;
-    cpu->D = (flags >> 3) & 1;
-    cpu->B = (flags >> 4) & 1;
-    cpu->U = (flags >> 5) & 1;
-    cpu->V = (flags >> 6) & 1;
-    cpu->N = (flags >> 7) & 1;
-}
-
 static uint16_t read_16(Memory* mem, uint16_t addr)
 {
     uint16_t l = memory_read(mem, addr);
@@ -243,7 +217,7 @@ static void handler_beq(Cpu* cpu, HandlerData* hd)
 
 static void handler_plp(Cpu* cpu, HandlerData* hd)
 {
-    unpack_flags(cpu, (stack_pop(cpu) & 0xEF) | 0x20 /* unused */);
+    cpu->flags = (stack_pop(cpu) & 0xEF) | 0x20 /* unused */;
 }
 
 static void handler_rts(Cpu* cpu, HandlerData* hd)
@@ -480,7 +454,7 @@ static void handler_bne(Cpu* cpu, HandlerData* hd)
 
 static void handler_php(Cpu* cpu, HandlerData* hd)
 {
-    stack_push(cpu, pack_flags(cpu) | 0x10 /* break flag */);
+    stack_push(cpu, cpu->flags | 0x10 /* break flag */);
 }
 
 static void handler_cpy(Cpu* cpu, HandlerData* hd)
@@ -1028,7 +1002,7 @@ const char* cpu_tostring_short(Cpu* cpu)
     memset(res, 0, STR_SIZE);
 
     sprintf(res, "F: 0x%04x SP: 0x%04x A: 0x%02x X: 0x%02x Y: 0x%02x CYC: %lu",
-            pack_flags(cpu), cpu->SP, cpu->A, cpu->X, cpu->Y,
+            cpu->flags, cpu->SP, cpu->A, cpu->X, cpu->Y,
             (cpu->cycles * 3) % 341);
     return res;
 }
@@ -1048,7 +1022,7 @@ const char* cpu_tostring(Cpu* cpu)
             "A:     0x%02x [ %u ]\n"
             "X:     0x%02x [ %u ]\n"
             "Y:     0x%02x [ %u ]\n",
-            pack_flags(cpu), cpu->PC, cpu->SP, cpu->A, cpu->A, cpu->X, cpu->X,
+            cpu->flags, cpu->PC, cpu->SP, cpu->A, cpu->A, cpu->X, cpu->X,
             cpu->Y, cpu->Y);
     return res;
 }
@@ -1057,15 +1031,8 @@ void cpu_serialize(Cpu* cpu, FILE* ofile)
 {
     // NOTE: memory is not serialized.. It is fine for NES, but it does not work
     // for standalone CPU builds
-    Buffer res = buf_calloc(sizeof(Cpu));
-
-    memcpy(res.buffer, cpu, res.size);
-    Cpu* cpu_cpy = (Cpu*)res.buffer;
-    cpu_cpy->sys = NULL;
-    cpu_cpy->mem = NULL;
-
+    Buffer res = {.buffer = (uint8_t*)cpu, .size = sizeof(Cpu)};
     dump_buffer(&res, ofile);
-    free(res.buffer);
 }
 
 void cpu_deserialize(Cpu* cpu, FILE* ifile)
