@@ -602,7 +602,7 @@ void apu_step(Apu* apu)
     if (apu->is_paused)
         return;
 
-    static const float gap   = 0.99;
+    static const float gap   = 1.0;
     uint64_t sample_gen_freq = apu->sys->cpu_freq / apu->spec.freq * gap;
     if (prev_cycle % sample_gen_freq == 0)
         gen_sample(apu);
