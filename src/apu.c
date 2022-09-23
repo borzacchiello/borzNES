@@ -3,6 +3,7 @@
 #include "alloc.h"
 #include "system.h"
 #include "6502_cpu.h"
+#include "memory.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,6 +16,7 @@
 #define ENABLE_PULSE2 1
 #define ENABLE_TRIANG 1
 #define ENABLE_NOISE  1
+#define ENABLE_DMC    1
 
 #define ENVELOPE_LOOP(wave)  ((wave)->length_counter_halt == 1)
 #define LENGTH_ENABLED(wave) ((wave)->length_counter_halt == 0)
@@ -120,6 +122,7 @@ Apu* apu_build(struct System* sys)
     apu->pulse1.channel  = 0;
     apu->pulse2.channel  = 1;
     apu->noise.shift_reg = 1;
+    apu->dmc.sys         = sys;
 
     SDL_AudioSpec want;
     SDL_zero(want);
@@ -400,6 +403,84 @@ static uint8_t noise_output(Noise* n)
     return n->envelope_volume;
 }
 
+static void dmc_write_control(DMC* dmc, uint8_t value)
+{
+    dmc->irq         = (value >> 7) & 1;
+    dmc->loop        = (value >> 6) & 1;
+    dmc->tick_period = dmc_tab[value & 0x0F];
+}
+
+static void dmc_write_value(DMC* dmc, uint8_t value)
+{
+    dmc->value = value & 0x7F;
+}
+
+static void dmc_write_address(DMC* dmc, uint8_t value)
+{
+    dmc->sample_addr = 0xC000 | ((uint16_t)value << 6);
+}
+
+static void dmc_write_length(DMC* dmc, uint8_t value)
+{
+    dmc->sample_length = ((uint16_t)value << 4) | 1;
+}
+
+static void dmc_restart(DMC* dmc)
+{
+    dmc->current_addr   = dmc->sample_addr;
+    dmc->current_length = dmc->sample_length;
+}
+
+static void dmc_step_reader(DMC* dmc)
+{
+    if (dmc->current_length > 0 && dmc->bit_count == 0) {
+        dmc->sys->cpu->stall += 4;
+        dmc->shift_register =
+            memory_read(dmc->sys->cpu->mem, dmc->current_addr);
+        dmc->bit_count = 8;
+        dmc->current_addr++;
+        if (dmc->current_addr == 0)
+            dmc->current_addr = 0x8000;
+        dmc->current_length--;
+        if (dmc->current_length == 0 && dmc->loop)
+            dmc_restart(dmc);
+    }
+}
+
+static void dmc_step_shifter(DMC* dmc)
+{
+    if (dmc->bit_count == 0)
+        return;
+
+    if (dmc->shift_register & 1) {
+        if (dmc->value <= 125)
+            dmc->value += 2;
+    } else {
+        if (dmc->value >= 2) {
+            dmc->value -= 2;
+        }
+    }
+
+    dmc->shift_register >>= 1;
+    dmc->bit_count--;
+}
+
+static void dmc_step_timer(DMC* dmc)
+{
+    if (!dmc->enabled)
+        return;
+
+    dmc_step_reader(dmc);
+    if (dmc->tick_value == 0) {
+        dmc->tick_value = dmc->tick_period;
+        dmc_step_shifter(dmc);
+    } else {
+        dmc->tick_value--;
+    }
+}
+
+static uint8_t dmc_output(DMC* dmc) { return dmc->value; }
+
 static void apu_step_envelope(Apu* apu)
 {
     pulse_step_envelope(&apu->pulse1);
@@ -428,8 +509,7 @@ static void apu_write_control(Apu* apu, uint8_t value)
     apu->pulse2.enabled     = (value >> 1) & 1;
     apu->triangular.enabled = (value >> 2) & 1;
     apu->noise.enabled      = (value >> 3) & 1;
-
-    // TODO other waves
+    apu->dmc.enabled        = (value >> 4) & 1;
 
     if (!apu->pulse1.enabled)
         apu->pulse1.length_value = 0;
@@ -439,6 +519,10 @@ static void apu_write_control(Apu* apu, uint8_t value)
         apu->triangular.length_value = 0;
     if (!apu->noise.enabled)
         apu->noise.length_value = 0;
+    if (!apu->dmc.enabled)
+        apu->dmc.current_length = 0;
+    else if (apu->dmc.current_length == 0)
+        dmc_restart(&apu->dmc);
 }
 
 static void apu_write_frame_counter(Apu* apu, uint8_t value)
@@ -483,6 +567,19 @@ void apu_write_register(Apu* apu, uint16_t addr, uint8_t value)
         case 0x4008:
             triangular_write_control(&apu->triangular, value);
             break;
+        case 0x4009:
+        case 0x4010:
+            dmc_write_control(&apu->dmc, value);
+            break;
+        case 0x4011:
+            dmc_write_value(&apu->dmc, value);
+            break;
+        case 0x4012:
+            dmc_write_address(&apu->dmc, value);
+            break;
+        case 0x4013:
+            dmc_write_length(&apu->dmc, value);
+            break;
         case 0x400A:
             triangular_write_timer_low(&apu->triangular, value);
             break;
@@ -513,7 +610,7 @@ void apu_write_register(Apu* apu, uint16_t addr, uint8_t value)
 
 static float apu_sample(Apu* apu)
 {
-    uint8_t p1 = 0, p2 = 0, t = 0, n = 0;
+    uint8_t p1 = 0, p2 = 0, t = 0, n = 0, d = 0;
 
 #if ENABLE_PULSE1
     p1 = pulse_output(&apu->pulse1);
@@ -531,10 +628,12 @@ static float apu_sample(Apu* apu)
     n = noise_output(&apu->noise);
 #endif
 
-    // TODO dmc
+#if ENABLE_DMC
+    d = dmc_output(&apu->dmc);
+#endif
 
     float pulse_out = pulse_tab[p1 + p2];
-    float tnd_out   = tnd_tab[3 * t + 2 * n];
+    float tnd_out   = tnd_tab[3 * t + 2 * n + d];
     return pulse_out + tnd_out;
 }
 
@@ -591,7 +690,7 @@ void apu_step(Apu* apu)
         pulse_step_timer(&apu->pulse1);
         pulse_step_timer(&apu->pulse2);
         noise_step_timer(&apu->noise);
-        // TODO dmc
+        dmc_step_timer(&apu->dmc);
     }
     triangular_step_timer(&apu->triangular);
 
@@ -618,6 +717,7 @@ void apu_unpause(Apu* apu)
     apu->is_paused = 0;
     SDL_PauseAudioDevice(apu->dev, 0);
 }
+
 void apu_pause(Apu* apu)
 {
     apu->is_paused = 1;

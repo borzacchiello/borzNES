@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 struct System;
+struct Cpu;
 
 typedef struct {
     float prev_x;
@@ -98,7 +99,25 @@ typedef struct Noise {
 } Noise;
 
 typedef struct DMC {
+    union {
+        struct {
+            uint8_t enabled : 1;
+            uint8_t loop : 1;
+            uint8_t irq : 1;
+        };
+        uint16_t flags;
+    };
 
+    struct System* sys;
+    uint8_t        value;
+    uint16_t       sample_addr;
+    uint16_t       sample_length;
+    uint16_t       current_addr;
+    uint16_t       current_length;
+    uint8_t        shift_register;
+    uint8_t        bit_count;
+    uint8_t        tick_period;
+    uint8_t        tick_value;
 } DMC;
 
 typedef struct Apu {
