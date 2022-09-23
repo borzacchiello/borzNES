@@ -7,12 +7,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define SAMPLE_SINE_WAVE 0
+#define ENABLE_HIGH_FILTER_1 1
+#define ENABLE_HIGH_FILTER_2 1
+#define ENABLE_LOW_FILTER    1
+
+#define ENABLE_PULSE1 1
+#define ENABLE_PULSE2 1
+#define ENABLE_TRIANG 1
+#define ENABLE_NOISE  1
 
 #define ENVELOPE_LOOP(wave)  ((wave)->length_counter_halt == 1)
 #define LENGTH_ENABLED(wave) ((wave)->length_counter_halt == 0)
 
-static float approx_sine(float x)
+static float __attribute__((unused)) approx_sine(float x)
 {
     // https://www.youtube.com/watch?v=1xlCVBIF_ig
     float t = x * 0.15915f;
@@ -75,23 +82,29 @@ static float apply_filter(SoundFilter* sf, float x)
 
     float cutoff, c, a0i;
 
+#if ENABLE_HIGH_FILTER_1
     // high pass filter
     cutoff = 90.0;
     c      = sf->sample_rate / pi / cutoff;
     a0i    = 1.0 / (1.0 + c);
     x      = calc_filter(&sf->high_90, c * a0i, -c * a0i, (1 - c) * a0i, x);
+#endif
 
+#if ENABLE_HIGH_FILTER_2
     // high pass filter
     cutoff = 440.0;
     c      = sf->sample_rate / pi / cutoff;
     a0i    = 1.0 / (1.0 + c);
     x      = calc_filter(&sf->high_440, c * a0i, -c * a0i, (1 - c) * a0i, x);
+#endif
 
+#if ENABLE_LOW_FILTER
     // low pass filter
     cutoff = 14000.0;
     c      = sf->sample_rate / pi / cutoff;
     a0i    = 1.0 / (1.0 + c);
     x      = calc_filter(&sf->low_14000, a0i, a0i, (1 - c) * a0i, x);
+#endif
 
     return x * gain;
 }
@@ -104,15 +117,16 @@ Apu* apu_build(struct System* sys)
     Apu* apu = calloc_or_fail(sizeof(Apu));
     apu->sys = sys;
 
-    apu->pulse1.channel = 0;
-    apu->pulse2.channel = 1;
+    apu->pulse1.channel  = 0;
+    apu->pulse2.channel  = 1;
+    apu->noise.shift_reg = 1;
 
     SDL_AudioSpec want;
     SDL_zero(want);
     want.freq     = 44100;
     want.format   = AUDIO_F32;
     want.channels = 1;
-    want.samples  = 1024;
+    want.samples  = 2048;
 
     apu->dev = SDL_OpenAudioDevice(NULL, 0, &want, &apu->spec, 0);
 
@@ -248,34 +262,172 @@ static uint8_t pulse_output(Pulse* pulse)
     return pulse->envelope_volume;
 }
 
+static void triangular_write_control(Triangular* t, uint8_t value)
+{
+    t->length_counter_halt = (value >> 7) & 1;
+    t->counter_period      = value & 0x7F;
+}
+
+static void triangular_write_timer_low(Triangular* t, uint8_t value)
+{
+    t->timer_period = (t->timer_period & 0xFF00) | (uint16_t)value;
+}
+
+static void triangular_write_timer_high(Triangular* t, uint8_t value)
+{
+    t->length_value = length_tab[value >> 3];
+    t->timer_period = (t->timer_period & 0x00FF) | ((uint16_t)(value & 7) << 8);
+    t->timer_value  = t->timer_period;
+    t->counter_reload = 1;
+}
+
+static void triangular_step_timer(Triangular* t)
+{
+    if (t->timer_value == 0) {
+        t->timer_value = t->timer_period;
+        if (t->length_value > 0 && t->counter_value > 0)
+            t->duty_value = (t->duty_value + 1) % 32;
+    } else {
+        t->timer_value--;
+    }
+}
+
+static void triangular_step_length(Triangular* t)
+{
+    if (!t->length_counter_halt && t->length_value > 0)
+        t->length_value--;
+}
+
+static void triangular_step_counter(Triangular* t)
+{
+    if (t->counter_reload)
+        t->counter_value = t->counter_period;
+    else if (t->counter_value > 0)
+        t->counter_value--;
+
+    if (!t->length_counter_halt)
+        t->counter_reload = 0;
+}
+
+static uint8_t triangular_output(Triangular* t)
+{
+    if (!t->enabled)
+        return 0;
+
+    if (t->timer_period < 3)
+        return 0;
+
+    if (t->length_value == 0)
+        return 0;
+
+    if (t->counter_value == 0)
+        return 0;
+
+    return triangle_tab[t->duty_value];
+}
+
+static void noise_write_control(Noise* n, uint8_t value)
+{
+    n->length_counter_halt           = (value >> 5) & 1;
+    n->constant_volume_envelope_flag = (value >> 4) & 1;
+    n->volume_driver_period          = (value & 0x0F);
+    n->envelope_start                = 1;
+}
+
+static void noise_write_period(Noise* n, uint8_t value)
+{
+    n->mode         = (value & 0x80) == 0x80;
+    n->timer_period = noise_tab[value & 0x0F];
+}
+
+static void noise_write_length(Noise* n, uint8_t value)
+{
+    n->length_value   = length_tab[value >> 3];
+    n->envelope_start = 1;
+}
+
+static void noise_step_timer(Noise* n)
+{
+    if (n->timer_value == 0) {
+        n->timer_value = n->timer_period;
+        uint8_t shift  = n->mode ? 6 : 1;
+        uint8_t b1     = n->shift_reg & 1;
+        uint8_t b2     = (n->shift_reg >> shift) & 1;
+        n->shift_reg >>= 1;
+        n->shift_reg |= (b1 ^ b2) << 14;
+    } else {
+        n->timer_value--;
+    }
+}
+
+static void noise_step_envelope(Noise* n)
+{
+    if (n->envelope_start) {
+        n->envelope_volume = 15;
+        n->envelope_value  = n->volume_driver_period;
+        n->envelope_start  = 0;
+    } else if (n->envelope_value > 0) {
+        n->envelope_value--;
+    } else {
+        if (n->envelope_volume > 0) {
+            n->envelope_volume--;
+        } else if (ENVELOPE_LOOP(n)) {
+            n->envelope_volume = 15;
+        }
+        n->envelope_value = n->volume_driver_period;
+    }
+}
+
+static void noise_step_length(Noise* n)
+{
+    if (LENGTH_ENABLED(n) && n->length_value > 0)
+        n->length_value--;
+}
+
+static uint8_t noise_output(Noise* n)
+{
+    if (!n->enabled)
+        return 0;
+
+    if (n->length_value == 0)
+        return 0;
+
+    if (n->shift_reg & 1)
+        return 0;
+
+    if (n->constant_volume_envelope_flag)
+        return n->volume_driver_period;
+    return n->envelope_volume;
+}
+
 static void apu_step_envelope(Apu* apu)
 {
     pulse_step_envelope(&apu->pulse1);
     pulse_step_envelope(&apu->pulse2);
-
-    // TODO other waves
+    triangular_step_counter(&apu->triangular);
+    noise_step_envelope(&apu->noise);
 }
 
 static void apu_step_length(Apu* apu)
 {
     pulse_step_length(&apu->pulse1);
     pulse_step_length(&apu->pulse2);
-
-    // TODO other waves
+    triangular_step_length(&apu->triangular);
+    noise_step_length(&apu->noise);
 }
 
 static void apu_step_sweep(Apu* apu)
 {
     pulse_step_sweep(&apu->pulse1);
     pulse_step_sweep(&apu->pulse2);
-
-    // TODO other waves
 }
 
 static void apu_write_control(Apu* apu, uint8_t value)
 {
-    apu->pulse1.enabled = value & 1;
-    apu->pulse2.enabled = (value >> 1) & 1;
+    apu->pulse1.enabled     = value & 1;
+    apu->pulse2.enabled     = (value >> 1) & 1;
+    apu->triangular.enabled = (value >> 2) & 1;
+    apu->noise.enabled      = (value >> 3) & 1;
 
     // TODO other waves
 
@@ -283,6 +435,10 @@ static void apu_write_control(Apu* apu, uint8_t value)
         apu->pulse1.length_value = 0;
     if (!apu->pulse2.enabled)
         apu->pulse2.length_value = 0;
+    if (!apu->triangular.enabled)
+        apu->triangular.length_value = 0;
+    if (!apu->noise.enabled)
+        apu->noise.length_value = 0;
 }
 
 static void apu_write_frame_counter(Apu* apu, uint8_t value)
@@ -324,6 +480,25 @@ void apu_write_register(Apu* apu, uint16_t addr, uint8_t value)
         case 0x4007:
             pulse_write_timer_high(&apu->pulse2, value);
             break;
+        case 0x4008:
+            triangular_write_control(&apu->triangular, value);
+            break;
+        case 0x400A:
+            triangular_write_timer_low(&apu->triangular, value);
+            break;
+        case 0x400B:
+            triangular_write_timer_high(&apu->triangular, value);
+            break;
+        case 0x400C:
+            noise_write_control(&apu->noise, value);
+            break;
+        case 0x400D:
+        case 0x400E:
+            noise_write_period(&apu->noise, value);
+            break;
+        case 0x400F:
+            noise_write_length(&apu->noise, value);
+            break;
         case 0x4015:
             apu_write_control(apu, value);
             break;
@@ -338,44 +513,34 @@ void apu_write_register(Apu* apu, uint16_t addr, uint8_t value)
 
 static float apu_sample(Apu* apu)
 {
-    uint8_t p1 = pulse_output(&apu->pulse1);
-    uint8_t p2 = pulse_output(&apu->pulse2);
+    uint8_t p1 = 0, p2 = 0, t = 0, n = 0;
 
-    // TODO other waves
+#if ENABLE_PULSE1
+    p1 = pulse_output(&apu->pulse1);
+#endif
+
+#if ENABLE_PULSE2
+    p2 = pulse_output(&apu->pulse2);
+#endif
+
+#if ENABLE_TRIANG
+    t = triangular_output(&apu->triangular);
+#endif
+
+#if ENABLE_NOISE
+    n = noise_output(&apu->noise);
+#endif
+
+    // TODO dmc
 
     float pulse_out = pulse_tab[p1 + p2];
-    return pulse_out;
+    float tnd_out   = tnd_tab[3 * t + 2 * n];
+    return pulse_out + tnd_out;
 }
 
 static void gen_sample(Apu* apu)
 {
-    float sample;
-
-#if SAMPLE_SINE_WAVE
-    static int   idx = 0, dir = 1;
-    static float freq = 50;
-    static float pi2  = 6.28318530718;
-    static float t    = 0;
-    sample            = 32000 * approx_sine(t);
-
-    t += freq * pi2 / 44100.0;
-    if (t >= pi2)
-        t -= pi2;
-
-    if (++idx == 256) {
-        if (dir)
-            freq += 10;
-        else
-            freq -= 10;
-        if (freq > 2000)
-            dir = 0;
-        if (freq < 50)
-            dir = 1;
-        idx = 0;
-    }
-#else
-    sample = apply_filter(&apu->filter, apu_sample(apu));
-#endif
+    float sample = apply_filter(&apu->filter, apu_sample(apu));
 
     apu->sound_buffer[apu->sound_buffer_i++] = sample;
     if (apu->sound_buffer_i >= apu->sound_buffer_num_els) {
@@ -425,8 +590,10 @@ void apu_step(Apu* apu)
     if (apu->cycles % 2 == 0) {
         pulse_step_timer(&apu->pulse1);
         pulse_step_timer(&apu->pulse2);
+        noise_step_timer(&apu->noise);
+        // TODO dmc
     }
-    // TODO other waves
+    triangular_step_timer(&apu->triangular);
 
     uint64_t frame_counter_rate = apu->sys->cpu_freq / 240;
     if (prev_cycle % frame_counter_rate == 0)
@@ -435,7 +602,7 @@ void apu_step(Apu* apu)
     if (apu->is_paused)
         return;
 
-    static const float gap   = 0.95;
+    static const float gap   = 0.99;
     uint64_t sample_gen_freq = apu->sys->cpu_freq / apu->spec.freq * gap;
     if (prev_cycle % sample_gen_freq == 0)
         gen_sample(apu);

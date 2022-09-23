@@ -58,15 +58,53 @@ typedef struct Pulse {
     uint16_t timer_period;
 } Pulse;
 
+typedef struct Triangular {
+    union {
+        struct {
+            uint8_t enabled : 1;
+            uint8_t length_counter_halt : 1;
+            uint8_t counter_reload : 1;
+        };
+        uint8_t flags;
+    };
+
+    uint8_t  counter_value;
+    uint8_t  counter_period;
+    uint8_t  length_value;
+    uint8_t  duty_value;
+    uint16_t timer_value;
+    uint16_t timer_period;
+} Triangular;
+
+typedef struct Noise {
+    union {
+        struct {
+            uint8_t enabled : 1;
+            uint8_t length_counter_halt : 1;
+            uint8_t constant_volume_envelope_flag : 1;
+            uint8_t volume_driver_period : 4;
+            uint8_t envelope_start : 1;
+            uint8_t mode : 1;
+        };
+        uint16_t flags;
+    };
+
+    uint16_t shift_reg;
+    uint8_t  envelope_volume;
+    uint8_t  envelope_value;
+    uint16_t timer_value;
+    uint16_t timer_period;
+    uint8_t  length_value;
+} Noise;
+
+typedef struct DMC {
+
+} DMC;
+
 typedef struct Apu {
     struct System*    sys;
     SDL_AudioDeviceID dev;
     SDL_AudioSpec     spec;
-
-    SoundFilter filter;
-
-    Pulse pulse1;
-    Pulse pulse2;
 
     union {
         struct {
@@ -76,6 +114,14 @@ typedef struct Apu {
         };
         uint8_t flags;
     };
+
+    SoundFilter filter;
+
+    Pulse      pulse1;
+    Pulse      pulse2;
+    Triangular triangular;
+    Noise      noise;
+    DMC        dmc;
 
     uint8_t  frame_value;
     float*   sound_buffer;
