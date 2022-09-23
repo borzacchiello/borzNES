@@ -8,6 +8,7 @@ set ( CMAKE_C_STANDARD 17 )
 
 set ( borzNES_src
     6502_cpu.c
+    apu.c
     alloc.c
     cartridge.c
     logging.c

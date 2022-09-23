@@ -4,6 +4,7 @@
 #include "6502_cpu.h"
 #include "mapper.h"
 #include "ppu.h"
+#include "apu.h"
 #include "logging.h"
 
 #include <stdio.h>
@@ -28,16 +29,19 @@ System* system_build(const char* rom_path)
     Mapper*    map  = mapper_build(cart);
     Cpu*       cpu  = cpu_build(sys);
     Ppu*       ppu  = ppu_build(sys);
+    Apu*       apu  = apu_build(sys);
 
     sys->cart            = cart;
     sys->mapper          = map;
     sys->cpu             = cpu;
     sys->ppu             = ppu;
+    sys->apu             = apu;
     sys->cpu_freq        = CPU_1X_FREQ;
     sys->state_save_path = get_state_path(rom_path);
 
     cpu_reset(cpu);
     ppu_reset(ppu);
+    apu_unpause(apu);
     return sys;
 }
 
@@ -47,6 +51,7 @@ void system_destroy(System* sys)
     mapper_destroy(sys->mapper);
     cpu_destroy(sys->cpu);
     ppu_destroy(sys->ppu);
+    apu_destroy(sys->apu);
     free(sys->state_save_path);
     free(sys);
 }
@@ -55,10 +60,15 @@ uint64_t system_step(System* sys)
 {
     uint64_t cpu_cycles = cpu_step(sys->cpu);
     uint64_t ppu_cycles = 3ul * cpu_cycles;
+    uint64_t apu_cycles = cpu_cycles;
 
     for (uint64_t i = 0; i < ppu_cycles; ++i) {
         ppu_step(sys->ppu);
         mapper_step(sys->mapper, sys);
+    }
+
+    for (uint64_t i = 0; i < apu_cycles; ++i) {
+        apu_step(sys->apu);
     }
     return cpu_cycles;
 }

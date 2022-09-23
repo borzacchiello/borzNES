@@ -4,6 +4,7 @@
 #include "6502_cpu.h"
 #include "memory.h"
 #include "ppu.h"
+#include "apu.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -61,6 +62,8 @@ int main(int argc, char const* argv[])
     if (argc < 2)
         return 1;
 
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
+
     System*     sys = system_build(argv[1]);
     GameWindow* gw  = gamewindow_build(sys);
 
@@ -69,7 +72,7 @@ int main(int argc, char const* argv[])
 
     EmulationMode   mode = NORMAL_MODE;
     long            start, last_rewind_timestamp = 0;
-    int             should_quit = 0, fast_freq = 0, slow_freq = 0;
+    int             should_quit = 0, fast_freq = 0, slow_freq = 0, audio_on = 1;
     ControllerState p1, p2;
     p1.state = 0;
     p2.state = 0;
@@ -114,8 +117,11 @@ int main(int argc, char const* argv[])
                         should_quit = 1;
                         break;
                     case SDLK_p:
-                        gw->patterntab_palette_idx =
-                            (gw->patterntab_palette_idx + 1) % 8;
+                        audio_on = !audio_on;
+                        if (audio_on)
+                            apu_unpause(sys->apu);
+                        else
+                            apu_pause(sys->apu);
                         break;
                     case SDLK_f:
                         slow_freq     = 0;
@@ -227,5 +233,7 @@ int main(int argc, char const* argv[])
 
     gamewindow_destroy(gw);
     system_destroy(sys);
+
+    SDL_Quit();
     return 0;
 }

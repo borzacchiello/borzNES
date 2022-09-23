@@ -15,6 +15,9 @@ static volatile int g_is_window_created = 0;
 
 Window* window_build(uint32_t width, uint32_t height)
 {
+    if (!SDL_WasInit(SDL_INIT_VIDEO))
+        panic("you must init SDL Video first");
+
     if (width > MAX_WIDTH)
         panic("width is too high (%u), the maximum value is %u", width,
               MAX_WIDTH);
@@ -30,7 +33,6 @@ Window* window_build(uint32_t width, uint32_t height)
     win->width  = width;
     win->height = height;
 
-    SDL_Init(SDL_INIT_VIDEO);
     SDL_CreateWindowAndRenderer(width, height, 0, &win->sdl_window,
                                 &win->sdl_renderer);
     SDL_SetRenderDrawColor(win->sdl_renderer, 0, 0, 0, 0);
@@ -68,8 +70,6 @@ Window* window_build_for_text(uint32_t rows, uint32_t cols)
     win->text_rows = rows;
     win->text_cols = cols;
 
-    SDL_Init(SDL_INIT_VIDEO);
-
     TTF_Init();
     win->text_font = TTF_OpenFont("courier.ttf", 20);
     if (win->text_font == NULL)
@@ -99,7 +99,6 @@ void window_destroy(Window* win)
     SDL_DestroyRenderer(win->sdl_renderer);
     SDL_DestroyWindow(win->sdl_window);
     TTF_CloseFont(win->text_font);
-    SDL_Quit();
     TTF_Quit();
 
     free(win);

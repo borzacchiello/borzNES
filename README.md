@@ -2,8 +2,6 @@
 
 Yet another NES emulator, written just for fun :)
 
-No APU (audio) yet.
-
 ![screencast](img/screencast.gif)
 
 ### Build
@@ -47,7 +45,7 @@ The (hardcoded) keymappings for Player1 are the following:
 | Enter Debug Mode                 | D          |
 | (in Debug mode) step CPU         | I          |
 | (in Debug mode) step PPU frame   | O          |
-| Change Nametable Palette         | P          |
+| Mute                             | P          |
 | Quit                             | Q          |
 
 ### Implemented Mappers

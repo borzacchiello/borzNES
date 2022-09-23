@@ -3,12 +3,13 @@
 
 #include <stdint.h>
 
-#define CPU_0_5X_FREQ 894886l
-#define CPU_2X_FREQ   3579546l
 #define CPU_1X_FREQ   1789773l
+#define CPU_2X_FREQ   (2l * CPU_1X_FREQ)
+#define CPU_0_5X_FREQ (CPU_1X_FREQ / 2l)
 
 struct Cpu;
 struct Ppu;
+struct Apu;
 struct Cartridge;
 struct Mapper;
 
@@ -35,6 +36,7 @@ typedef struct ControllerState {
 typedef struct System {
     struct Cpu*       cpu;
     struct Ppu*       ppu;
+    struct Apu*       apu;
     struct Cartridge* cart;
     struct Mapper*    mapper;
     char*             state_save_path;

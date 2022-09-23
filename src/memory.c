@@ -5,6 +5,7 @@
 #include "logging.h"
 #include "cartridge.h"
 #include "ppu.h"
+#include "apu.h"
 
 #include <assert.h>
 
@@ -83,6 +84,7 @@ static void cpu_memory_write(void* _mem, uint16_t addr, uint8_t value)
 {
     InternalMemory* mem = (InternalMemory*)_mem;
     Ppu*            ppu = mem->sys->ppu;
+    Apu*            apu = mem->sys->apu;
 
     if (addr < 0x2000) {
         mem->sys->RAM[addr % 0x800] = value;
@@ -93,8 +95,7 @@ static void cpu_memory_write(void* _mem, uint16_t addr, uint8_t value)
         return;
     }
     if (addr < 0x4014) {
-        warning("0x%04x [0x%02x]: APU write not currently supported", addr,
-                value);
+        apu_write_register(apu, addr, value);
         return;
     }
     if (addr == 0x4014) {
@@ -102,8 +103,7 @@ static void cpu_memory_write(void* _mem, uint16_t addr, uint8_t value)
         return;
     }
     if (addr == 0x4015) {
-        warning("0x%04x [0x%02x]: APU write not currently supported", addr,
-                value);
+        apu_write_register(apu, addr, value);
         return;
     }
     if (addr == 0x4016) {
@@ -112,8 +112,7 @@ static void cpu_memory_write(void* _mem, uint16_t addr, uint8_t value)
         return;
     }
     if (addr == 0x4017) {
-        warning("0x%04x [0x%02x]: APU write not currently supported", addr,
-                value);
+        apu_write_register(apu, addr, value);
         return;
     }
     if (addr < 0x6000) {
