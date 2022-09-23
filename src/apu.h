@@ -6,6 +6,18 @@
 
 struct System;
 
+typedef struct {
+    float prev_x;
+    float prev_y;
+} FilterState;
+
+typedef struct {
+    int         sample_rate;
+    FilterState high_90;
+    FilterState high_440;
+    FilterState low_14000;
+} SoundFilter;
+
 typedef struct Pulse {
     union {
         struct {
@@ -50,6 +62,8 @@ typedef struct Apu {
     struct System*    sys;
     SDL_AudioDeviceID dev;
     SDL_AudioSpec     spec;
+
+    SoundFilter filter;
 
     Pulse pulse1;
     Pulse pulse2;

@@ -59,6 +59,43 @@ __attribute__((constructor)) static void init_tabs()
         tnd_tab[i] = 163.67 / (24329.0 / (float)i + 100);
 }
 
+static float calc_filter(FilterState* state, float B0, float B1, float A1,
+                         float x)
+{
+    float y       = B0 * x + B1 * state->prev_x - A1 * state->prev_y;
+    state->prev_x = x;
+    state->prev_y = y;
+    return y;
+}
+
+static float apply_filter(SoundFilter* sf, float x)
+{
+    static const float pi   = 3.14159265359;
+    static const float gain = 1.0;
+
+    float cutoff, c, a0i;
+
+    // high pass filter
+    cutoff = 90.0;
+    c      = sf->sample_rate / pi / cutoff;
+    a0i    = 1.0 / (1.0 + c);
+    x      = calc_filter(&sf->high_90, c * a0i, -c * a0i, (1 - c) * a0i, x);
+
+    // high pass filter
+    cutoff = 440.0;
+    c      = sf->sample_rate / pi / cutoff;
+    a0i    = 1.0 / (1.0 + c);
+    x      = calc_filter(&sf->high_440, c * a0i, -c * a0i, (1 - c) * a0i, x);
+
+    // low pass filter
+    cutoff = 14000.0;
+    c      = sf->sample_rate / pi / cutoff;
+    a0i    = 1.0 / (1.0 + c);
+    x      = calc_filter(&sf->low_14000, a0i, a0i, (1 - c) * a0i, x);
+
+    return x * gain;
+}
+
 Apu* apu_build(struct System* sys)
 {
     if (!SDL_WasInit(SDL_INIT_AUDIO))
@@ -79,6 +116,7 @@ Apu* apu_build(struct System* sys)
 
     apu->dev = SDL_OpenAudioDevice(NULL, 0, &want, &apu->spec, 0);
 
+    apu->filter.sample_rate   = apu->spec.freq;
     apu->sound_buffer_num_els = apu->spec.samples / 4;
     apu->sound_buffer =
         malloc_or_fail(apu->sound_buffer_num_els * sizeof(float));
@@ -204,7 +242,6 @@ static uint8_t pulse_output(Pulse* pulse)
 
     if (duty_tab[pulse->duty_cycle][pulse->duty_value] == 0)
         return 0;
-
 
     if (pulse->constant_volume_envelope_flag)
         return pulse->volume_driver_period;
@@ -337,7 +374,7 @@ static void gen_sample(Apu* apu)
         idx = 0;
     }
 #else
-    sample = apu_sample(apu);
+    sample = apply_filter(&apu->filter, apu_sample(apu));
 #endif
 
     apu->sound_buffer[apu->sound_buffer_i++] = sample;
