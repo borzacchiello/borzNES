@@ -31,7 +31,12 @@ add_executable ( borznes
     ${borzNES_src}
     main.c )
 
+add_executable ( borznes_multi
+    ${borzNES_src}
+    multiplayer_main.c )
+
 target_link_libraries ( borznes LINK_PUBLIC SDL2 SDL2_ttf )
+target_link_libraries ( borznes_multi LINK_PUBLIC SDL2 SDL2_ttf )
 
 add_custom_command (
         TARGET borznes POST_BUILD

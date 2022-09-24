@@ -44,5 +44,6 @@ void gamewindow_set_pixel(GameWindow* gw, int x, int y, uint32_t rgba);
 void gamewindow_draw(GameWindow* gw);
 
 long get_timestamp_milliseconds();
+long get_timestamp_microseconds();
 
 #endif

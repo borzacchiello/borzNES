@@ -22,6 +22,14 @@ long get_timestamp_milliseconds()
     return te.tv_sec * 1000LL + te.tv_usec / 1000;
 }
 
+long get_timestamp_microseconds()
+{
+    struct timeval te;
+    gettimeofday(&te, NULL);
+
+    return te.tv_sec * 1000000LL + te.tv_usec;
+}
+
 static long g_prev_timestamp = 0;
 
 GameWindow* gamewindow_build(System* sys)
