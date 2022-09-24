@@ -103,7 +103,7 @@ int main(int argc, char const* argv[])
 
     gamewindow_draw(gw);
 
-    long            start, end, milliseconds_to_wait;
+    long            start, end, microseconds_to_wait;
     int             should_quit = 0;
     ControllerState p1, p2;
     p1.state = 0;
@@ -111,6 +111,9 @@ int main(int argc, char const* argv[])
 
     SDL_Event e;
     while (!should_quit) {
+        if (state == DRAW_FRAME)
+            start = get_timestamp_microseconds();
+
         if (window_poll_event(&e)) {
             if (e.type == SDL_QUIT) {
                 break;
@@ -172,14 +175,12 @@ int main(int argc, char const* argv[])
         }
 
         if (state == DRAW_FRAME) {
-            start = get_timestamp_milliseconds();
-
             uint64_t cycles    = 0;
             uint32_t old_frame = sys->ppu->frame;
             while (sys->ppu->frame == old_frame)
                 cycles += system_step(sys);
 
-            milliseconds_to_wait = 1000ll * cycles / sys->cpu_freq;
+            microseconds_to_wait = 1000000ll * cycles / sys->cpu_freq;
             state                = WAIT_FOR_KEY;
         } else if (state == WAIT_FOR_KEY) {
             if (write(fd1, &p1.state, sizeof(p1.state)) != sizeof(p1.state))
@@ -192,8 +193,8 @@ int main(int argc, char const* argv[])
             system_update_controller(sys, is_p1 ? P2 : P1, p2);
             state = WAIT_UNTIL_READY;
         } else if (state == WAIT_UNTIL_READY) {
-            end = get_timestamp_milliseconds();
-            if (end - start >= milliseconds_to_wait)
+            end = get_timestamp_microseconds();
+            if (end - start >= microseconds_to_wait)
                 state = DRAW_FRAME;
         }
     }
