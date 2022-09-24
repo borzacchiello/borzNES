@@ -71,15 +71,17 @@ int main(int argc, char const* argv[])
     gamewindow_draw(gw);
 
     EmulationMode   mode = NORMAL_MODE;
-    long            start, last_rewind_timestamp = 0;
+    long            start, end, last_rewind_timestamp = 0;
     int             should_quit = 0, fast_freq = 0, slow_freq = 0, audio_on = 1;
     ControllerState p1, p2;
     p1.state = 0;
     p2.state = 0;
 
+    end = get_timestamp_milliseconds();
+
     SDL_Event e;
     while (!should_quit) {
-        start = get_timestamp_milliseconds();
+        start = end;
         if (window_poll_event(&e)) {
             if (e.type == SDL_QUIT) {
                 break;
@@ -207,20 +209,20 @@ int main(int argc, char const* argv[])
             system_update_controller(sys, P2, p2);
         }
 
-        long end_timestamp = get_timestamp_milliseconds();
+        end = get_timestamp_milliseconds();
         if (mode == NORMAL_MODE) {
-            system_step_ms(sys, end_timestamp - start);
+            system_step_ms(sys, end - start);
 #if ENABLE_REWIND
-            if (end_timestamp - last_rewind_timestamp > 500) {
-                last_rewind_timestamp = end_timestamp;
+            if (end - last_rewind_timestamp > 500) {
+                last_rewind_timestamp = end;
                 save_rewind_state(sys);
             }
 #endif
         }
 #if ENABLE_REWIND
         if (mode == REWIND_MODE) {
-            if (end_timestamp - last_rewind_timestamp > 500) {
-                last_rewind_timestamp = end_timestamp;
+            if (end - last_rewind_timestamp > 500) {
+                last_rewind_timestamp = end;
                 if (load_rewind_state(sys)) {
                     int old_frame = sys->ppu->frame;
                     while (sys->ppu->frame != old_frame + 2)
