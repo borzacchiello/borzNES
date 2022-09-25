@@ -10,23 +10,31 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <errno.h>
 
 #ifdef __MINGW32__
 #include <winsock2.h>
 #else
+#include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #endif
 
+#define SYNC_FRAME_COUNT     2
 #define BORZNES_DEFAULT_PORT 54000
 
 typedef enum EmuState { DRAW_FRAME, WAIT_FOR_KEY, WAIT_UNTIL_READY } EmuState;
 
-int open_p1_socket(int port)
+static int open_p1_socket(int port)
 {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0)
         panic("cannot create p1 socket");
+
+    int flags = 1;
+    if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (void*)&flags, sizeof(flags)) <
+        0)
+        panic("setsockopt failed");
 
     struct sockaddr_in addr;
     addr.sin_family      = AF_INET;
@@ -42,11 +50,16 @@ int open_p1_socket(int port)
     return fd;
 }
 
-int open_p2_socket(const char* ip, int port)
+static int open_p2_socket(const char* ip, int port)
 {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0)
         panic("cannot create p2 socket");
+
+    int flags = 1;
+    if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (void*)&flags, sizeof(flags)) <
+        0)
+        panic("setsockopt failed");
 
     struct sockaddr_in addr;
     addr.sin_family      = AF_INET;
@@ -58,6 +71,44 @@ int open_p2_socket(const char* ip, int port)
         panic("p1 server is not running");
 
     return fd;
+}
+
+static int64_t read_all(int fd, void* o_buf, int64_t len)
+{
+    if (len <= 0)
+        panic("read_all(): invalid len");
+
+    void*   pt     = o_buf;
+    int64_t n_read = 0;
+    while (n_read < len) {
+        int64_t r = recv(fd, pt, len - n_read, 0);
+        if (r < 0)
+            panic("read_all(): read failed [%s]", strerror(errno));
+        if (r == 0)
+            panic("read_all(): peer disconnected");
+        pt += r;
+        n_read += r;
+    }
+    return n_read;
+}
+
+static int64_t write_all(int fd, void* i_buf, int64_t len)
+{
+    if (len <= 0)
+        panic("write_all(): invalid len");
+
+    void*   pt      = i_buf;
+    int64_t n_wrote = 0;
+    while (n_wrote < len) {
+        int64_t r = send(fd, pt, len - n_wrote, 0);
+        if (r < 0)
+            panic("write_all(): write failed [%s]", strerror(errno));
+        if (r == 0)
+            panic("write_all(): peer disconnected");
+        pt += r;
+        n_wrote += r;
+    }
+    return n_wrote;
 }
 
 int main(int argc, char const* argv[])
@@ -80,7 +131,7 @@ int main(int argc, char const* argv[])
         fd2   = open_p1_socket(BORZNES_DEFAULT_PORT);
 
         struct sockaddr_in client_addr;
-        uint32_t           client_addr_len;
+        uint32_t           client_addr_len = sizeof(client_addr);
         if ((fd1 = accept(fd2, (struct sockaddr*)&client_addr,
                           &client_addr_len)) < 0)
             panic("accept error");
@@ -88,10 +139,8 @@ int main(int argc, char const* argv[])
         printf("player 2 connected from %s\n", inet_ntoa(client_addr.sin_addr));
 
         static char magic[8];
-        if (read(fd1, &magic, sizeof(magic)) != 7 ||
-            memcmp(magic, "borzNES", 7) != 0) {
-            info("read %s\n", magic);
-            panic("handshake failed");
+        if (read_all(fd1, &magic, 7) != 7 || memcmp(magic, "borzNES", 7) != 0) {
+            panic("handshake failed (msg=\"%s\")", magic);
         }
     } else {
         // player 2
@@ -99,9 +148,9 @@ int main(int argc, char const* argv[])
 
         is_p1 = 0;
         fd1   = open_p2_socket(argv[2], BORZNES_DEFAULT_PORT);
-        if (write(fd1, "borzNES", 7) != 7)
+        if (write_all(fd1, "borzNES", 7) != 7)
             panic("write failed");
-        printf("connected!");
+        printf("connected!\n");
     }
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
@@ -112,8 +161,8 @@ int main(int argc, char const* argv[])
 
     gamewindow_draw(gw);
 
-    long            start, end, microseconds_to_wait;
-    int             should_quit = 0;
+    long            start, end, microseconds_to_wait = 0;
+    int             should_quit = 0, sync_count = 0;
     ControllerState p1, p2;
     p1.state = 0;
     p2.state = 0;
@@ -189,13 +238,18 @@ int main(int argc, char const* argv[])
             while (sys->ppu->frame == old_frame)
                 cycles += system_step(sys);
 
-            microseconds_to_wait = 1000000ll * cycles / sys->cpu_freq;
-            state                = WAIT_FOR_KEY;
+            if (++sync_count == SYNC_FRAME_COUNT) {
+                sync_count           = 0;
+                microseconds_to_wait = 1000000ll * cycles / sys->cpu_freq;
+                state                = WAIT_FOR_KEY;
+            } else {
+                state = WAIT_UNTIL_READY;
+            }
         } else if (state == WAIT_FOR_KEY) {
-            if (write(fd1, &p1.state, sizeof(p1.state)) != sizeof(p1.state))
+            if (write_all(fd1, &p1.state, sizeof(p1.state)) != sizeof(p1.state))
                 panic("unable to send keys");
 
-            if (read(fd1, &p2.state, sizeof(p2.state)) != sizeof(p2.state))
+            if (read_all(fd1, &p2.state, sizeof(p2.state)) != sizeof(p2.state))
                 panic("unable to read keys");
 
             system_update_controller(sys, is_p1 ? P1 : P2, p1);
