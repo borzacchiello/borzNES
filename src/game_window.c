@@ -14,7 +14,7 @@
 #define SHOW_CPU_INFO 1
 #define SHOW_PPU_INFO 1
 
-long get_timestamp_milliseconds()
+static long get_timestamp_milliseconds()
 {
     struct timeval te;
     gettimeofday(&te, NULL);

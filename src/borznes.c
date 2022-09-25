@@ -14,9 +14,9 @@
 #define REWIND_BUF_SIZE 100
 
 #ifdef __MINGW32__
-#define REWIND_DIR      "borznes"
+#define REWIND_DIR "borznes"
 #else
-#define REWIND_DIR      "/tmp/borznes"
+#define REWIND_DIR "/tmp/borznes"
 #endif
 
 typedef enum { NORMAL_MODE, DEBUG_MODE, REWIND_MODE } EmulationMode;
@@ -79,18 +79,17 @@ int main(int argc, char const* argv[])
     init_rewind();
     gamewindow_draw(gw);
 
-    EmulationMode   mode = NORMAL_MODE;
-    long            start, end, last_rewind_timestamp = 0;
-    int             should_quit = 0, fast_freq = 0, slow_freq = 0, audio_on = 1;
+    EmulationMode mode = NORMAL_MODE;
+    long          start, end, last_rewind_timestamp = 0;
+    int           should_quit = 0, fast_freq = 0, slow_freq = 0, audio_on = 1,
+        should_draw            = 1;
+    uint64_t        ms_to_wait = 0;
     ControllerState p1, p2;
     p1.state = 0;
     p2.state = 0;
 
-    end = get_timestamp_milliseconds();
-
     SDL_Event e;
     while (!should_quit) {
-        start = end;
         if (window_poll_event(&e)) {
             if (e.type == SDL_QUIT) {
                 break;
@@ -218,11 +217,26 @@ int main(int argc, char const* argv[])
             system_update_controller(sys, P2, p2);
         }
 
-        end = get_timestamp_milliseconds();
         if (mode == NORMAL_MODE) {
-            system_step_ms(sys, end - start);
+            if (should_draw) {
+                uint64_t cycles    = 0;
+                uint32_t old_frame = sys->ppu->frame;
+                while (sys->ppu->frame == old_frame)
+                    cycles += system_step(sys);
+
+                should_draw = 0;
+                ms_to_wait  = 1000000ll * cycles / sys->cpu_freq;
+            } else {
+                end = get_timestamp_microseconds();
+                if (end - start >= ms_to_wait) {
+                    start       = end;
+                    should_draw = 1;
+                }
+            }
+
 #if ENABLE_REWIND
-            if (end - last_rewind_timestamp > 500) {
+            end = get_timestamp_microseconds();
+            if (end - last_rewind_timestamp > 500000) {
                 last_rewind_timestamp = end;
                 save_rewind_state(sys);
             }
@@ -230,7 +244,7 @@ int main(int argc, char const* argv[])
         }
 #if ENABLE_REWIND
         if (mode == REWIND_MODE) {
-            if (end - last_rewind_timestamp > 500) {
+            if (end - last_rewind_timestamp > 500000) {
                 last_rewind_timestamp = end;
                 if (load_rewind_state(sys)) {
                     int old_frame = sys->ppu->frame;

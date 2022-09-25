@@ -75,7 +75,7 @@ uint64_t system_step(System* sys)
 
 void system_step_ms(System* sys, int64_t delta_time_ms)
 {
-    int64_t cycles = (int64_t)(sys->cpu_freq / 1000l * delta_time_ms);
+    int64_t cycles = (int64_t)(sys->cpu_freq * delta_time_ms / 1000000l);
     while (cycles > 0)
         cycles -= system_step(sys);
 }
