@@ -238,10 +238,10 @@ int main(int argc, char const* argv[])
             while (sys->ppu->frame == old_frame)
                 cycles += system_step(sys);
 
+            microseconds_to_wait = 1000000ll * cycles / sys->cpu_freq;
             if (++sync_count == SYNC_FRAME_COUNT) {
-                sync_count           = 0;
-                microseconds_to_wait = 1000000ll * cycles / sys->cpu_freq;
-                state                = WAIT_FOR_KEY;
+                sync_count = 0;
+                state      = WAIT_FOR_KEY;
             } else {
                 state = WAIT_UNTIL_READY;
             }
