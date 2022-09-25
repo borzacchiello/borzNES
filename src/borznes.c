@@ -244,6 +244,7 @@ int main(int argc, char const* argv[])
         }
 #if ENABLE_REWIND
         if (mode == REWIND_MODE) {
+            end = get_timestamp_microseconds();
             if (end - last_rewind_timestamp > 500000) {
                 last_rewind_timestamp = end;
                 if (load_rewind_state(sys)) {
