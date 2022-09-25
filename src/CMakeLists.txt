@@ -66,3 +66,17 @@ add_custom_command (
         COMMAND ${CMAKE_COMMAND} -E copy
                 ${CMAKE_SOURCE_DIR}/../font/courier.ttf
                 ${CMAKE_CURRENT_BINARY_DIR}/courier.ttf )
+
+if ( WIN )
+    add_custom_command (
+            TARGET borznes POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy
+                    ${WIN_SDL2}/bin/SDL2.dll
+                    ${CMAKE_CURRENT_BINARY_DIR}/SDL2.dll )
+
+    add_custom_command (
+        TARGET borznes POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+                ${WIN_SDL2}/bin/SDL2_ttf.dll
+                ${CMAKE_CURRENT_BINARY_DIR}/SDL2_ttf.dll )
+endif ()

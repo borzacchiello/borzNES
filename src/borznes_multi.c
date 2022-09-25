@@ -65,6 +65,11 @@ int main(int argc, char const* argv[])
     if (argc < 2)
         return 1;
 
+#ifdef __MINGW32__
+    WSADATA wsaData;
+    WSAStartup(MAKEWORD(2, 2), &wsaData);
+#endif
+
     int is_p1;
     int fd1 = -1, fd2 = -1;
     if (argc == 2) {
@@ -208,8 +213,17 @@ int main(int argc, char const* argv[])
 
     SDL_Quit();
 
+#ifdef __MINGW32__
+    closesocket(fd1);
+    if (fd2 > 0) {
+        closesocket(fd2);
+    }
+
+    WSACleanup();
+#else
     close(fd1);
     if (fd2 > 0)
         close(fd2);
+#endif
     return 0;
 }
