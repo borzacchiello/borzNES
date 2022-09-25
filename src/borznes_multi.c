@@ -11,8 +11,12 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#ifdef __MINGW32__
+#include <winsock2.h>
+#else
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#endif
 
 #define BORZNES_DEFAULT_PORT 54000
 
@@ -48,7 +52,7 @@ int open_p2_socket(const char* ip, int port)
     addr.sin_family      = AF_INET;
     addr.sin_addr.s_addr = inet_addr(ip);
     addr.sin_port        = htons(port);
-    socklen_t addr_len   = sizeof(addr);
+    uint32_t addr_len    = sizeof(addr);
 
     if (connect(fd, (struct sockaddr*)&addr, addr_len) < 0)
         panic("p1 server is not running");
@@ -71,7 +75,7 @@ int main(int argc, char const* argv[])
         fd2   = open_p1_socket(BORZNES_DEFAULT_PORT);
 
         struct sockaddr_in client_addr;
-        socklen_t          client_addr_len;
+        uint32_t           client_addr_len;
         if ((fd1 = accept(fd2, (struct sockaddr*)&client_addr,
                           &client_addr_len)) < 0)
             panic("accept error");

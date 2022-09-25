@@ -13,6 +13,11 @@ Color color_black = {0, 0, 0, 0};
 
 static volatile int g_is_window_created = 0;
 
+#ifdef __MINGW32__
+extern char* strdup(const char*);
+extern char *strtok(char *str, const char *delim);
+#endif
+
 Window* window_build(uint32_t width, uint32_t height)
 {
     if (!SDL_WasInit(SDL_INIT_VIDEO))

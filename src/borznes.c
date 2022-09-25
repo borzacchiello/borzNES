@@ -12,7 +12,12 @@
 
 #define ENABLE_REWIND   1
 #define REWIND_BUF_SIZE 100
+
+#ifdef __MINGW32__
+#define REWIND_DIR      "borznes"
+#else
 #define REWIND_DIR      "/tmp/borznes"
+#endif
 
 typedef enum { NORMAL_MODE, DEBUG_MODE, REWIND_MODE } EmulationMode;
 
@@ -24,7 +29,11 @@ void init_rewind()
 {
     struct stat st = {0};
     if (stat(REWIND_DIR, &st) == -1) {
+#ifdef __MINGW32__
+        mkdir(REWIND_DIR);
+#else
         mkdir(REWIND_DIR, 0700);
+#endif
     }
 }
 

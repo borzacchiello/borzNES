@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define SKIP_BORDER_PIXELS 1
+#define SKIP_BORDER_PIXELS 0
 #define PRINT_PPU_STATE    0
 
 #define IS_PIXEL_TRANSPARENT(p) ((p) % 4 == 0)

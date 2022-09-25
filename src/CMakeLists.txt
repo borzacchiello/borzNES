@@ -3,6 +3,9 @@ cmake_minimum_required ( VERSION 3.19 )
 project ( borzNES )
 
 option ( ASAN "Compile with asan (only for debug builds)" OFF )
+option ( WIN  "Cross-compile for Windows" OFF )
+
+set ( WIN_SDL2 "" CACHE STRING "Path to sdl2 mingw" )
 
 set ( CMAKE_C_STANDARD 17 )
 
@@ -22,21 +25,41 @@ set ( borzNES_src
 set ( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Wall" )
 set ( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer -Wall" )
 
-if ( ASAN )
+if ( ${ASAN} )
     set ( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address,undefined" )
     set ( CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fsanitize=address,undefined" )
 endif ()
 
-add_executable ( borznes
-    ${borzNES_src}
-    main.c )
+if ( ${WIN} )
+    if ( WIN_SDL2 STREQUAL "" )
+        message ( FATAL_ERROR "Missing SDL2 path (-DWIN_SDL2=/path/to/win_sdl2/x86_64-w64-mingw32/)" )
+    endif ()
+
+    set ( CMAKE_C_COMPILER "x86_64-w64-mingw32-gcc" )
+    set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DSDL_MAIN_HANDLED" )
+    include_directories ( ${WIN_SDL2}/include )
+    link_directories ( ${WIN_SDL2}/lib )
+else ()
+    set ( CMAKE_C_COMPILER "clang" )
+endif ()
 
 add_executable ( borznes_multi
     ${borzNES_src}
-    multiplayer_main.c )
+    borznes_multi.c )
+
+add_executable ( borznes
+    ${borzNES_src}
+    borznes.c )
+
+target_link_libraries ( borznes_multi LINK_PUBLIC SDL2 SDL2_ttf )
+if ( WIN )
+    target_link_libraries ( borznes_multi LINK_PUBLIC ws2_32 )
+endif ()
 
 target_link_libraries ( borznes LINK_PUBLIC SDL2 SDL2_ttf )
-target_link_libraries ( borznes_multi LINK_PUBLIC SDL2 SDL2_ttf )
+if ( WIN )
+    target_link_libraries ( borznes LINK_PUBLIC ws2_32 )
+endif ()
 
 add_custom_command (
         TARGET borznes POST_BUILD
