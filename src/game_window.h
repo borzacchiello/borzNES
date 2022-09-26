@@ -9,6 +9,8 @@
 #define PACK_RGB(r, g, b)                                                      \
     (((uint32_t)r << 24) | ((uint32_t)g << 16) | ((uint32_t)b << 8) | 0xFFu)
 
+extern long latency;
+
 struct System;
 struct Window;
 

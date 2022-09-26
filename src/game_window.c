@@ -12,6 +12,7 @@
 
 #define SHOW_FPS 1
 
+long        latency          = 0;
 static long g_prev_timestamp = 0;
 
 static long get_timestamp_milliseconds()
@@ -368,7 +369,7 @@ static void simple_gw_draw(void* _gw)
 
     window_prepare_redraw(gw->win);
 
-    static char fps_str[64];
+    static char fps_str[128];
     static int  show_fps_counter = 0;
     if (++show_fps_counter == 30) {
         show_fps_counter = 0;
@@ -376,7 +377,8 @@ static void simple_gw_draw(void* _gw)
 
         long   dt  = get_timestamp_milliseconds() - g_prev_timestamp;
         double fps = 1000.0l / dt;
-        sprintf(fps_str, "borzNES - FPS: %.03lf", fps);
+        sprintf(fps_str, "borzNES - latency: %ld ms - fps: %.03lf", latency,
+                fps);
         SDL_SetWindowTitle(gw->win->sdl_window, fps_str);
     }
     g_prev_timestamp = get_timestamp_milliseconds();

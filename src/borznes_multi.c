@@ -162,6 +162,7 @@ int main(int argc, char const* argv[])
     gamewindow_draw(gw);
 
     long            start, end, microseconds_to_wait = 0;
+    long            start_latency_calc;
     int             should_quit = 0, sync_count = 0, audio_on = 1;
     ControllerState p1, p2, freezed_p1;
     p1.state = 0;
@@ -252,7 +253,8 @@ int main(int argc, char const* argv[])
                 if (write_all(fd1, &p1.state, sizeof(p1.state)) !=
                     sizeof(p1.state))
                     panic("unable to send keys");
-                freezed_p1 = p1;
+                start_latency_calc = get_timestamp_microseconds();
+                freezed_p1         = p1;
             } else {
                 state = WAIT_UNTIL_READY;
             }
@@ -266,6 +268,8 @@ int main(int argc, char const* argv[])
         } else if (state == WAIT_FOR_KEY) {
             if (read_all(fd1, &p2.state, sizeof(p2.state)) != sizeof(p2.state))
                 panic("unable to read keys");
+            latency =
+                (get_timestamp_microseconds() - start_latency_calc) / 1000l;
 
             system_update_controller(sys, is_p1 ? P1 : P2, freezed_p1);
             system_update_controller(sys, is_p1 ? P2 : P1, p2);
