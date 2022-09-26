@@ -10,9 +10,9 @@
 #include <string.h>
 #include <sys/time.h>
 
-#define SHOW_FPS      1
-#define SHOW_CPU_INFO 1
-#define SHOW_PPU_INFO 1
+#define SHOW_FPS 1
+
+static long g_prev_timestamp = 0;
 
 static long get_timestamp_milliseconds()
 {
@@ -30,59 +30,36 @@ long get_timestamp_microseconds()
     return te.tv_sec * 1000000LL + te.tv_usec;
 }
 
-static long g_prev_timestamp = 0;
+// RichGameWindow
+typedef struct RichGameWindow {
+    struct Window* win;
+    struct System* sys;
 
-GameWindow* gamewindow_build(System* sys)
+    int gamewin_scale;
+    int gamewin_width;
+    int gamewin_height;
+    int gamewin_x, gamewin_y;
+    int patterntab1_x, patterntab1_y;
+    int patterntab2_x, patterntab2_y;
+    int palettes_w, palettes_h;
+    int palettes_x, palettes_y;
+
+    int text_top_padding;
+    int text_width;
+    int text_col_off;
+
+    int patterntab_palette_idx;
+
+    SDL_Surface* gamewin_surface;
+    SDL_Surface* palettes_surface;
+    SDL_Surface* patterntab1_surface;
+    SDL_Surface* patterntab2_surface;
+} RichGameWindow;
+
+void rich_gw_destroy(void* _gw)
 {
-    GameWindow* gw = malloc_or_fail(sizeof(GameWindow));
-    gw->sys        = sys;
+    RichGameWindow* gw = (RichGameWindow*)_gw;
 
-    gw->gamewin_scale    = 3;
-    gw->gamewin_width    = 256;
-    gw->gamewin_height   = 240;
-    gw->text_top_padding = 1;
-    gw->text_width       = gw->gamewin_width * 2 + gw->gamewin_width / 3;
-    gw->gamewin_x        = 10;
-    gw->gamewin_y        = 10;
-
-    gw->patterntab1_y =
-        gw->gamewin_height * gw->gamewin_scale - gw->gamewin_height - 30;
-    gw->patterntab1_x = gw->gamewin_width * gw->gamewin_scale + 30;
-    gw->patterntab2_y = gw->patterntab1_y;
-    gw->patterntab2_x = gw->patterntab1_x + gw->gamewin_width + 30;
-
-    gw->palettes_w = 10 * 4 * 8 + 5 * 8;
-    gw->palettes_h = 10;
-    gw->palettes_x = gw->patterntab1_x;
-    gw->palettes_y = gw->patterntab1_y - 20;
-
-    gw->patterntab_palette_idx = 0;
-
-    gw->win = window_build(gw->gamewin_width * gw->gamewin_scale +
-                               gw->text_width + 20,
-                           gw->gamewin_height * gw->gamewin_scale + 20);
-
-    gw->text_col_off =
-        gw->gamewin_width * gw->gamewin_scale / gw->win->text_char_width + 3;
-
-    gw->gamewin_surface =
-        SDL_CreateRGBSurface(0, gw->gamewin_width, gw->gamewin_height, 32,
-                             0xFF000000, 0x00FF0000, 0x0000FF00, 0x000000FF);
-    gw->palettes_surface =
-        SDL_CreateRGBSurface(0, gw->palettes_w, gw->palettes_h, 32, 0xFF000000,
-                             0x00FF0000, 0x0000FF00, 0x000000FF);
-    gw->patterntab1_surface = SDL_CreateRGBSurface(
-        0, 128, 128, 32, 0xFF000000, 0x00FF0000, 0x0000FF00, 0x000000FF);
-    gw->patterntab2_surface = SDL_CreateRGBSurface(
-        0, 128, 128, 32, 0xFF000000, 0x00FF0000, 0x0000FF00, 0x000000FF);
-
-    g_prev_timestamp = get_timestamp_milliseconds();
-    ppu_set_game_window(sys->ppu, gw);
-    return gw;
-}
-
-void gamewindow_destroy(GameWindow* gw)
-{
     window_destroy(gw->win);
     SDL_FreeSurface(gw->gamewin_surface);
     SDL_FreeSurface(gw->palettes_surface);
@@ -92,10 +69,11 @@ void gamewindow_destroy(GameWindow* gw)
     free(gw);
 }
 
-void gamewindow_set_pixel(GameWindow* gw, int x, int y, uint32_t rgba)
+void rich_gw_set_pixel(void* _gw, int x, int y, uint32_t rgba)
 {
+    RichGameWindow* gw = (RichGameWindow*)_gw;
     if (x < 0 || x > 256 || y < 0 || y > 240)
-        panic("gamewindow_set_pixel: invalid pixel %d, %d", x, y);
+        panic("rich_gw_set_pixel: invalid pixel %d, %d", x, y);
 
     uint32_t* p = (uint32_t*)((uint8_t*)gw->gamewin_surface->pixels +
                               y * gw->gamewin_surface->pitch +
@@ -103,7 +81,8 @@ void gamewindow_set_pixel(GameWindow* gw, int x, int y, uint32_t rgba)
     *p          = rgba;
 }
 
-static void set_patterntab1_pixel(GameWindow* gw, int x, int y, uint32_t rgba)
+static void set_patterntab1_pixel(RichGameWindow* gw, int x, int y,
+                                  uint32_t rgba)
 {
     if (x < 0 || x > 256 || y < 0 || y > 240)
         panic("set_patterntab1_pixel: invalid pixel %d, %d", x, y);
@@ -115,7 +94,8 @@ static void set_patterntab1_pixel(GameWindow* gw, int x, int y, uint32_t rgba)
     *p = rgba;
 }
 
-static void set_patterntab2_pixel(GameWindow* gw, int x, int y, uint32_t rgba)
+static void set_patterntab2_pixel(RichGameWindow* gw, int x, int y,
+                                  uint32_t rgba)
 {
     if (x < 0 || x > 256 || y < 0 || y > 240)
         panic("set_patterntab2_pixel: invalid pixel %d, %d", x, y);
@@ -127,7 +107,7 @@ static void set_patterntab2_pixel(GameWindow* gw, int x, int y, uint32_t rgba)
     *p = rgba;
 }
 
-static void set_palettes_pixel(GameWindow* gw, int x, int y, uint32_t rgba)
+static void set_palettes_pixel(RichGameWindow* gw, int x, int y, uint32_t rgba)
 {
     if (x < 0 || x > gw->palettes_w || y < 0 || y > gw->palettes_h)
         panic("set_palettes_pixel: invalid pixel %d, %d", x, y);
@@ -138,7 +118,7 @@ static void set_palettes_pixel(GameWindow* gw, int x, int y, uint32_t rgba)
     *p          = rgba;
 }
 
-static void draw_palettes(GameWindow* gw)
+static void draw_palettes(RichGameWindow* gw)
 {
     int acc = 0;
     for (int i = 0; i < 8; ++i) {
@@ -158,7 +138,7 @@ static void draw_palettes(GameWindow* gw)
     }
 }
 
-static void draw_patterntables(GameWindow* gw, uint8_t palette)
+static void draw_patterntables(RichGameWindow* gw, uint8_t palette)
 {
     Ppu* ppu = gw->sys->ppu;
     for (uint16_t tile_y = 0; tile_y < 16; ++tile_y) {
@@ -203,8 +183,10 @@ static void draw_patterntables(GameWindow* gw, uint8_t palette)
     }
 }
 
-void gamewindow_draw(GameWindow* gw)
+static void rich_gw_draw(void* _gw)
 {
+    RichGameWindow* gw = (RichGameWindow*)_gw;
+
     window_prepare_redraw(gw->win);
 
     static int draw_context_counter = 0;
@@ -214,8 +196,7 @@ void gamewindow_draw(GameWindow* gw)
         draw_patterntables(gw, gw->patterntab_palette_idx);
     }
 
-#if SHOW_FPS
-    static char fps_str[32];
+    static char fps_str[64];
     static int  show_fps_counter = 0;
     if (++show_fps_counter == 30) {
         show_fps_counter = 0;
@@ -223,14 +204,11 @@ void gamewindow_draw(GameWindow* gw)
 
         long   dt  = get_timestamp_milliseconds() - g_prev_timestamp;
         double fps = 1000.0l / dt;
-        sprintf(fps_str, "FPS: %.03lf", fps);
+        sprintf(fps_str, "borzNES - FPS: %.03lf", fps);
+        SDL_SetWindowTitle(gw->win->sdl_window, fps_str);
     }
     g_prev_timestamp = get_timestamp_milliseconds();
-    window_draw_text(gw->win, gw->text_top_padding, gw->text_col_off,
-                     color_white, fps_str);
-#endif
 
-#if SHOW_CPU_INFO
     for (int32_t i = -2; i < 3; ++i) {
         int32_t addr = (int32_t)gw->sys->cpu->PC;
         addr += i;
@@ -251,11 +229,8 @@ void gamewindow_draw(GameWindow* gw)
 
     window_draw_text(gw->win, 8 + gw->text_top_padding, gw->text_col_off,
                      color_white, cpu_tostring(gw->sys->cpu));
-#endif
-#if SHOW_PPU_INFO
     window_draw_text(gw->win, 15 + gw->text_top_padding, gw->text_col_off,
                      color_white, ppu_tostring(gw->sys->ppu));
-#endif
 
     SDL_Texture* gamewin_texture = SDL_CreateTextureFromSurface(
         gw->win->sdl_renderer, gw->gamewin_surface);
@@ -298,3 +273,162 @@ void gamewindow_draw(GameWindow* gw)
 
     window_present(gw->win);
 }
+
+GameWindow* rich_gw_build(System* sys)
+{
+    RichGameWindow* gw = malloc_or_fail(sizeof(RichGameWindow));
+    gw->sys            = sys;
+
+    gw->gamewin_scale    = 3;
+    gw->gamewin_width    = 256;
+    gw->gamewin_height   = 240;
+    gw->text_top_padding = 1;
+    gw->text_width       = gw->gamewin_width * 2 + gw->gamewin_width / 3;
+    gw->gamewin_x        = 10;
+    gw->gamewin_y        = 10;
+
+    gw->patterntab1_y =
+        gw->gamewin_height * gw->gamewin_scale - gw->gamewin_height - 30;
+    gw->patterntab1_x = gw->gamewin_width * gw->gamewin_scale + 30;
+    gw->patterntab2_y = gw->patterntab1_y;
+    gw->patterntab2_x = gw->patterntab1_x + gw->gamewin_width + 30;
+
+    gw->palettes_w = 10 * 4 * 8 + 5 * 8;
+    gw->palettes_h = 10;
+    gw->palettes_x = gw->patterntab1_x;
+    gw->palettes_y = gw->patterntab1_y - 20;
+
+    gw->patterntab_palette_idx = 0;
+
+    gw->win = window_build(gw->gamewin_width * gw->gamewin_scale +
+                               gw->text_width + 20,
+                           gw->gamewin_height * gw->gamewin_scale + 20);
+
+    gw->text_col_off =
+        gw->gamewin_width * gw->gamewin_scale / gw->win->text_char_width + 3;
+
+    gw->gamewin_surface =
+        SDL_CreateRGBSurface(0, gw->gamewin_width, gw->gamewin_height, 32,
+                             0xFF000000, 0x00FF0000, 0x0000FF00, 0x000000FF);
+    gw->palettes_surface =
+        SDL_CreateRGBSurface(0, gw->palettes_w, gw->palettes_h, 32, 0xFF000000,
+                             0x00FF0000, 0x0000FF00, 0x000000FF);
+    gw->patterntab1_surface = SDL_CreateRGBSurface(
+        0, 128, 128, 32, 0xFF000000, 0x00FF0000, 0x0000FF00, 0x000000FF);
+    gw->patterntab2_surface = SDL_CreateRGBSurface(
+        0, 128, 128, 32, 0xFF000000, 0x00FF0000, 0x0000FF00, 0x000000FF);
+
+    g_prev_timestamp = get_timestamp_milliseconds();
+
+    GameWindow* res = malloc_or_fail(sizeof(GameWindow));
+    res->obj        = gw;
+    res->draw       = &rich_gw_draw;
+    res->set_pixel  = &rich_gw_set_pixel;
+    res->destroy    = &rich_gw_destroy;
+    ppu_set_game_window(sys->ppu, res);
+    return res;
+}
+
+// SimpleGameWindow
+typedef struct SimpleGameWindow {
+    struct Window* win;
+    struct System* sys;
+
+    int gamewin_scale;
+    int gamewin_width;
+    int gamewin_height;
+
+    SDL_Surface* gamewin_surface;
+} SimpleGameWindow;
+
+static void simple_gw_destroy(void* _gw)
+{
+    SimpleGameWindow* gw = (SimpleGameWindow*)_gw;
+
+    window_destroy(gw->win);
+    SDL_FreeSurface(gw->gamewin_surface);
+    free(gw);
+}
+
+static void simple_gw_set_pixel(void* _gw, int x, int y, uint32_t rgba)
+{
+    SimpleGameWindow* gw = (SimpleGameWindow*)_gw;
+    if (x < 0 || x > 256 || y < 0 || y > 240)
+        panic("simple_gw_set_pixel: invalid pixel %d, %d", x, y);
+
+    uint32_t* p = (uint32_t*)((uint8_t*)gw->gamewin_surface->pixels +
+                              y * gw->gamewin_surface->pitch +
+                              x * gw->gamewin_surface->format->BytesPerPixel);
+    *p          = rgba;
+}
+
+static void simple_gw_draw(void* _gw)
+{
+    SimpleGameWindow* gw = (SimpleGameWindow*)_gw;
+
+    window_prepare_redraw(gw->win);
+
+    static char fps_str[64];
+    static int  show_fps_counter = 0;
+    if (++show_fps_counter == 30) {
+        show_fps_counter = 0;
+        memset(fps_str, 0, sizeof(fps_str));
+
+        long   dt  = get_timestamp_milliseconds() - g_prev_timestamp;
+        double fps = 1000.0l / dt;
+        sprintf(fps_str, "borzNES - FPS: %.03lf", fps);
+        SDL_SetWindowTitle(gw->win->sdl_window, fps_str);
+    }
+    g_prev_timestamp = get_timestamp_milliseconds();
+
+    SDL_Texture* gamewin_texture = SDL_CreateTextureFromSurface(
+        gw->win->sdl_renderer, gw->gamewin_surface);
+    SDL_Rect gamewin_rect = {.x = 0,
+                             .y = 0,
+                             .w = gw->gamewin_width * gw->gamewin_scale,
+                             .h = gw->gamewin_height * gw->gamewin_scale};
+    SDL_RenderCopy(gw->win->sdl_renderer, gamewin_texture, NULL, &gamewin_rect);
+    SDL_DestroyTexture(gamewin_texture);
+    window_present(gw->win);
+}
+
+GameWindow* simple_gw_build(struct System* sys)
+{
+    SimpleGameWindow* gw = malloc_or_fail(sizeof(SimpleGameWindow));
+    gw->sys              = sys;
+
+    gw->gamewin_scale  = 3;
+    gw->gamewin_width  = 256;
+    gw->gamewin_height = 240;
+
+    gw->win = window_build(gw->gamewin_width * gw->gamewin_scale,
+                           gw->gamewin_height * gw->gamewin_scale);
+
+    gw->gamewin_surface =
+        SDL_CreateRGBSurface(0, gw->gamewin_width, gw->gamewin_height, 32,
+                             0xFF000000, 0x00FF0000, 0x0000FF00, 0x000000FF);
+
+    g_prev_timestamp = get_timestamp_milliseconds();
+
+    GameWindow* res = malloc_or_fail(sizeof(GameWindow));
+    res->obj        = gw;
+    res->draw       = &simple_gw_draw;
+    res->set_pixel  = &simple_gw_set_pixel;
+    res->destroy    = &simple_gw_destroy;
+    ppu_set_game_window(sys->ppu, res);
+    return res;
+}
+
+// Polymorphic GameWindow
+void gamewindow_destroy(GameWindow* gw)
+{
+    gw->destroy(gw->obj);
+    free(gw);
+}
+
+void gamewindow_set_pixel(GameWindow* gw, int x, int y, uint32_t rgba)
+{
+    gw->set_pixel(gw->obj, x, y, rgba);
+}
+
+void gamewindow_draw(GameWindow* gw) { gw->draw(gw->obj); }

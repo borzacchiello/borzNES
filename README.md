@@ -42,10 +42,10 @@ The (hardcoded) keymappings for Player1 are the following:
 | Fast Forward Mode (2x CPU speed) | F          |
 | Slow Mode (0.5x CPU speed)       | G          |
 | Rewind (hold)                    | R          |
-| Enter Debug Mode                 | D          |
+| Enter Debug Mode (if enabled)    | D          |
 | (in Debug mode) step CPU         | I          |
 | (in Debug mode) step PPU frame   | O          |
-| Mute                             | P          |
+| Mute                             | M          |
 | Quit                             | Q          |
 
 ### Implemented Mappers

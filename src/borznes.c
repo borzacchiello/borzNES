@@ -73,8 +73,13 @@ int main(int argc, char const* argv[])
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
 
-    System*     sys = system_build(argv[1]);
-    GameWindow* gw  = gamewindow_build(sys);
+    System* sys = system_build(argv[1]);
+
+#ifdef ENABLE_DEBUG_GW
+    GameWindow* gw = rich_gw_build(sys);
+#else
+    GameWindow* gw = simple_gw_build(sys);
+#endif
 
     init_rewind();
     gamewindow_draw(gw);
@@ -95,6 +100,9 @@ int main(int argc, char const* argv[])
                 break;
             } else if (e.type == SDL_KEYDOWN) {
                 switch (e.key.keysym.sym) {
+
+#ifdef ENABLE_DEBUG_GW
+
                     // DEBUG MODE KEYS
                     case SDLK_i: {
                         // step one CPU instruction
@@ -122,11 +130,14 @@ int main(int argc, char const* argv[])
                             mode = NORMAL_MODE;
                         break;
                     }
+
+#endif
+
                     // UTILS
                     case SDLK_q:
                         should_quit = 1;
                         break;
-                    case SDLK_p:
+                    case SDLK_m:
                         audio_on = !audio_on;
                         if (audio_on)
                             apu_unpause(sys->apu);
@@ -151,9 +162,11 @@ int main(int argc, char const* argv[])
                         break;
                         // REWIND
 #if ENABLE_REWIND
+
                     case SDLK_r:
                         mode = REWIND_MODE;
                         break;
+
 #endif
                     // GAME KEYBINDINGS
                     case SDLK_z:

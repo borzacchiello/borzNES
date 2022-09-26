@@ -1001,9 +1001,9 @@ const char* cpu_tostring_short(Cpu* cpu)
     static char res[STR_SIZE];
     memset(res, 0, STR_SIZE);
 
-    sprintf(res, "F: 0x%04x SP: 0x%04x A: 0x%02x X: 0x%02x Y: 0x%02x CYC: %lu",
+    sprintf(res, "F: 0x%04x SP: 0x%04x A: 0x%02x X: 0x%02x Y: 0x%02x CYC: %llu",
             cpu->flags, cpu->SP, cpu->A, cpu->X, cpu->Y,
-            (cpu->cycles * 3) % 341);
+            (unsigned long long)((cpu->cycles * 3) % 341));
     return res;
 }
 

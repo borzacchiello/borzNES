@@ -4,6 +4,7 @@ project ( borzNES )
 
 option ( ASAN "Compile with asan (only for debug builds)" OFF )
 option ( WIN  "Cross-compile for Windows" OFF )
+option ( GWDEBUG  "Enable rich debug game window" OFF )
 
 set ( WIN_SDL2 "" CACHE STRING "Path to sdl2 mingw" )
 
@@ -25,12 +26,16 @@ set ( borzNES_src
 set ( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Wall" )
 set ( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer -Wall" )
 
-if ( ${ASAN} )
+if ( GWDEBUG )
+    set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DENABLE_DEBUG_GW" )
+endif ()
+
+if ( ASAN )
     set ( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address,undefined" )
     set ( CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fsanitize=address,undefined" )
 endif ()
 
-if ( ${WIN} )
+if ( WIN )
     if ( WIN_SDL2 STREQUAL "" )
         message ( FATAL_ERROR "Missing SDL2 path (-DWIN_SDL2=/path/to/win_sdl2/x86_64-w64-mingw32/)" )
     endif ()
@@ -39,8 +44,6 @@ if ( ${WIN} )
     set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DSDL_MAIN_HANDLED" )
     include_directories ( ${WIN_SDL2}/include )
     link_directories ( ${WIN_SDL2}/lib )
-else ()
-    set ( CMAKE_C_COMPILER "clang" )
 endif ()
 
 add_executable ( borznes_multi

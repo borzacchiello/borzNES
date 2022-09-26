@@ -156,14 +156,14 @@ int main(int argc, char const* argv[])
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
 
     System*     sys   = system_build(argv[1]);
-    GameWindow* gw    = gamewindow_build(sys);
+    GameWindow* gw    = simple_gw_build(sys);
     EmuState    state = DRAW_FRAME;
 
     gamewindow_draw(gw);
 
     long            start, end, microseconds_to_wait = 0;
-    int             should_quit = 0, sync_count = 0;
-    ControllerState p1, p2;
+    int             should_quit = 0, sync_count = 0, audio_on = 1;
+    ControllerState p1, p2, freezed_p1;
     p1.state = 0;
     p2.state = 0;
 
@@ -177,6 +177,19 @@ int main(int argc, char const* argv[])
                 break;
             } else if (e.type == SDL_KEYDOWN) {
                 switch (e.key.keysym.sym) {
+                    // UTILS
+                    case SDLK_q:
+                        should_quit = 1;
+                        break;
+                    case SDLK_m:
+                        audio_on = !audio_on;
+                        if (audio_on)
+                            apu_unpause(sys->apu);
+                        else
+                            apu_pause(sys->apu);
+                        break;
+
+                    // KEYMAPPINGS
                     case SDLK_z:
                         p1.A = 1;
                         break;
@@ -233,26 +246,28 @@ int main(int argc, char const* argv[])
         }
 
         if (state == DRAW_FRAME) {
+            if (++sync_count == SYNC_FRAME_COUNT) {
+                sync_count = 0;
+                state      = WAIT_FOR_KEY;
+                if (write_all(fd1, &p1.state, sizeof(p1.state)) !=
+                    sizeof(p1.state))
+                    panic("unable to send keys");
+                freezed_p1 = p1;
+            } else {
+                state = WAIT_UNTIL_READY;
+            }
+
             uint64_t cycles    = 0;
             uint32_t old_frame = sys->ppu->frame;
             while (sys->ppu->frame == old_frame)
                 cycles += system_step(sys);
 
             microseconds_to_wait = 1000000ll * cycles / sys->cpu_freq;
-            if (++sync_count == SYNC_FRAME_COUNT) {
-                sync_count = 0;
-                state      = WAIT_FOR_KEY;
-            } else {
-                state = WAIT_UNTIL_READY;
-            }
         } else if (state == WAIT_FOR_KEY) {
-            if (write_all(fd1, &p1.state, sizeof(p1.state)) != sizeof(p1.state))
-                panic("unable to send keys");
-
             if (read_all(fd1, &p2.state, sizeof(p2.state)) != sizeof(p2.state))
                 panic("unable to read keys");
 
-            system_update_controller(sys, is_p1 ? P1 : P2, p1);
+            system_update_controller(sys, is_p1 ? P1 : P2, freezed_p1);
             system_update_controller(sys, is_p1 ? P2 : P1, p2);
             state = WAIT_UNTIL_READY;
         } else if (state == WAIT_UNTIL_READY) {

@@ -13,33 +13,16 @@ struct System;
 struct Window;
 
 typedef struct GameWindow {
-    struct Window* win;
-    struct System* sys;
-
-    int gamewin_scale;
-    int gamewin_width;
-    int gamewin_height;
-    int gamewin_x, gamewin_y;
-    int patterntab1_x, patterntab1_y;
-    int patterntab2_x, patterntab2_y;
-    int palettes_w, palettes_h;
-    int palettes_x, palettes_y;
-
-    int text_top_padding;
-    int text_width;
-    int text_col_off;
-
-    int patterntab_palette_idx;
-
-    SDL_Surface* gamewin_surface;
-    SDL_Surface* palettes_surface;
-    SDL_Surface* patterntab1_surface;
-    SDL_Surface* patterntab2_surface;
+    void* obj;
+    void (*set_pixel)(void* obj, int x, int y, uint32_t rgba);
+    void (*draw)(void* obj);
+    void (*destroy)(void* obj);
 } GameWindow;
 
-GameWindow* gamewindow_build(struct System* sys);
-void        gamewindow_destroy(GameWindow* gw);
+GameWindow* rich_gw_build(struct System* sys);
+GameWindow* simple_gw_build(struct System* sys);
 
+void gamewindow_destroy(GameWindow* gw);
 void gamewindow_set_pixel(GameWindow* gw, int x, int y, uint32_t rgba);
 void gamewindow_draw(GameWindow* gw);
 

@@ -779,14 +779,14 @@ const char* ppu_tostring_short(Ppu* ppu)
 
     sprintf(res,
             "PPU: SL=%03u CYC=%03u DL=%02d PREV_NMI=%d NMI_OUT=%d V=%04x "
-            "T=%04x SB=%d SS=%d VB=%d SZH=%d X=%03u TD=%016lx LTB=%02x "
+            "T=%04x SB=%d SS=%d VB=%d SZH=%d X=%03u TD=%016llx LTB=%02x "
             "HTB=%02x NTB=%02x",
             ppu->scanline, ppu->cycle, ppu->nmi_delay, ppu->nmi_prev,
             ppu->ctrl_flags.trigger_nmi, ppu->v, ppu->t,
             ppu->mask_flags.show_background, ppu->mask_flags.show_sprites,
             ppu->status_flags.in_vblank, ppu->status_flags.sprite_zero_hit,
-            ppu->x, ppu->tile_data, ppu->low_tile_byte, ppu->high_tile_byte,
-            ppu->name_table_byte);
+            ppu->x, (unsigned long long)ppu->tile_data, ppu->low_tile_byte,
+            ppu->high_tile_byte, ppu->name_table_byte);
     return res;
 }
 
