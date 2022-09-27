@@ -608,6 +608,27 @@ void apu_write_register(Apu* apu, uint16_t addr, uint8_t value)
     }
 }
 
+uint8_t apu_read_register(Apu* apu, uint16_t addr)
+{
+    if (addr != 0x4015) {
+        warning("apu_read_register(): unsupported addr 0x%04x", addr);
+        return 0;
+    }
+
+    uint8_t status = 0;
+    if (apu->pulse1.length_value > 0)
+        status |= 1;
+    if (apu->pulse2.length_value > 0)
+        status |= (1 << 1);
+    if (apu->triangular.length_value > 0)
+        status |= (1 << 2);
+    if (apu->noise.length_value > 0)
+        status |= (1 << 3);
+    if (apu->dmc.current_length > 0)
+        status |= (1 << 4);
+    return status;
+}
+
 static float apu_sample(Apu* apu)
 {
     uint8_t p1 = 0, p2 = 0, t = 0, n = 0, d = 0;

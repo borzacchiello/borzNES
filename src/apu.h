@@ -152,8 +152,9 @@ typedef struct Apu {
 Apu* apu_build(struct System* sys);
 void apu_destroy(Apu* apu);
 
-void apu_step(Apu* apu);
-void apu_write_register(Apu* apu, uint16_t addr, uint8_t value);
+void    apu_step(Apu* apu);
+void    apu_write_register(Apu* apu, uint16_t addr, uint8_t value);
+uint8_t apu_read_register(Apu* apu, uint16_t addr);
 
 void apu_pause(Apu* apu);
 void apu_unpause(Apu* apu);
