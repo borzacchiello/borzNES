@@ -49,6 +49,7 @@ static uint8_t cpu_memory_read(void* _mem, uint16_t addr)
 {
     InternalMemory* mem = (InternalMemory*)_mem;
     Ppu*            ppu = mem->sys->ppu;
+    Apu*            apu = mem->sys->apu;
 
     if (addr < 0x2000) {
         return mem->sys->RAM[addr % 0x800];
@@ -60,8 +61,7 @@ static uint8_t cpu_memory_read(void* _mem, uint16_t addr)
         return ppu_read_register(ppu, addr);
     }
     if (addr == 0x4015) {
-        warning("0x%04x: APU read not currently supported", addr);
-        return 0;
+        return apu_read_register(apu, addr);
     }
     if (addr == 0x4016) {
         return system_get_controller_val(mem->sys, P1);
