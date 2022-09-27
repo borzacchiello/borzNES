@@ -722,4 +722,7 @@ void apu_pause(Apu* apu)
 {
     apu->is_paused = 1;
     SDL_PauseAudioDevice(apu->dev, 1);
+    SDL_ClearQueuedAudio(apu->dev);
 }
+
+uint32_t apu_get_queued(Apu* apu) { return SDL_GetQueuedAudioSize(apu->dev); }

@@ -20,10 +20,20 @@
 #include <arpa/inet.h>
 #endif
 
-#define SYNC_FRAME_COUNT     2
 #define BORZNES_DEFAULT_PORT 54000
 
 typedef enum EmuState { DRAW_FRAME, WAIT_FOR_KEY, WAIT_UNTIL_READY } EmuState;
+
+static int sync_frame_count = 2;
+
+static void usage(const char* prog)
+{
+    fprintf(stderr,
+            "USAGE: %s <game.rom> [ <peer_ip> ]\n"
+            "   if <peer_ip> is not specified, listen on %d\n",
+            prog, BORZNES_DEFAULT_PORT);
+    exit(1);
+}
 
 static int open_p1_socket(int port)
 {
@@ -111,10 +121,24 @@ static int64_t write_all(int fd, void* i_buf, int64_t len)
     return n_wrote;
 }
 
+static int estimate_latency(int fd)
+{
+    const int N     = 100;
+    long      start = get_timestamp_microseconds();
+    for (int i = 0; i < N; ++i) {
+        char a;
+        if (send(fd, "a", 1, 0) != 1)
+            panic("estimate_latency(): unable to write [i= %d]", i);
+        if (recv(fd, &a, 1, 0) != 1)
+            panic("estimate_latency(): unable to read [i=%d]", i);
+    }
+    return (get_timestamp_microseconds() - start) / N / 1000l;
+}
+
 int main(int argc, char const* argv[])
 {
     if (argc < 2)
-        return 1;
+        usage(argv[0]);
 
 #ifdef __MINGW32__
     WSADATA wsaData;
@@ -142,6 +166,22 @@ int main(int argc, char const* argv[])
         if (read_all(fd1, &magic, 7) != 7 || memcmp(magic, "borzNES", 7) != 0) {
             panic("handshake failed (msg=\"%s\")", magic);
         }
+
+        latency = estimate_latency(fd1);
+        printf("estimated latency: %ld ms\n", latency);
+
+        sync_frame_count = latency / (1000l / 60l) + 1;
+        if (sync_frame_count > 6) {
+            warning("the latency is too high, expect the emulator to be slow");
+            sync_frame_count = 6;
+        }
+
+        int be_sync_frame_count = htonl(sync_frame_count);
+        if (write_all(fd1, &be_sync_frame_count, sizeof(be_sync_frame_count)) !=
+            sizeof(be_sync_frame_count)) {
+            panic("unable to send sync_frame_count");
+        }
+        printf("input sync every %u frame\n", sync_frame_count);
     } else {
         // player 2
         printf("Hello player 2! Trying to connect to %s\n", argv[2]);
@@ -151,6 +191,17 @@ int main(int argc, char const* argv[])
         if (write_all(fd1, "borzNES", 7) != 7)
             panic("write failed");
         printf("connected!\n");
+
+        latency = estimate_latency(fd1);
+        printf("estimated latency: %ld ms\n", latency);
+
+        int be_sync_frame_count;
+        if (read_all(fd1, &be_sync_frame_count, sizeof(be_sync_frame_count)) !=
+            sizeof(be_sync_frame_count)) {
+            panic("unable to recv sync_frame_count");
+        }
+        sync_frame_count = ntohl(be_sync_frame_count);
+        printf("input sync every %u frame\n", sync_frame_count);
     }
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
@@ -247,7 +298,7 @@ int main(int argc, char const* argv[])
         }
 
         if (state == DRAW_FRAME) {
-            if (++sync_count == SYNC_FRAME_COUNT) {
+            if (++sync_count == sync_frame_count) {
                 sync_count = 0;
                 state      = WAIT_FOR_KEY;
                 if (write_all(fd1, &p1.state, sizeof(p1.state)) !=
@@ -276,7 +327,8 @@ int main(int argc, char const* argv[])
             state = WAIT_UNTIL_READY;
         } else if (state == WAIT_UNTIL_READY) {
             end = get_timestamp_microseconds();
-            if (end - start >= microseconds_to_wait)
+            if (end - start >= microseconds_to_wait &&
+                apu_get_queued(sys->apu) < sys->apu->spec.freq)
                 state = DRAW_FRAME;
         }
     }

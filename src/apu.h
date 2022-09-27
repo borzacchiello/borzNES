@@ -157,6 +157,7 @@ void apu_write_register(Apu* apu, uint16_t addr, uint8_t value);
 
 void apu_pause(Apu* apu);
 void apu_unpause(Apu* apu);
-void apu_queue_samples(Apu* apu, void* samples, uint32_t samples_size);
+
+uint32_t apu_get_queued(Apu* apu);
 
 #endif

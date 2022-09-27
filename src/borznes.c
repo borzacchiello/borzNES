@@ -25,6 +25,12 @@ static int  rewind_num_states = 0;
 static int  rewind_id         = 0;
 static char rewind_tmp_path[128];
 
+static void usage(const char* prog)
+{
+    fprintf(stderr, "USAGE: %s <game.rom>\n", prog);
+    exit(1);
+}
+
 void init_rewind()
 {
     struct stat st = {0};
@@ -69,7 +75,7 @@ int load_rewind_state(System* sys)
 int main(int argc, char const* argv[])
 {
     if (argc < 2)
-        return 1;
+        usage(argv[0]);
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
 
@@ -241,7 +247,8 @@ int main(int argc, char const* argv[])
                 ms_to_wait  = 1000000ll * cycles / sys->cpu_freq;
             } else {
                 end = get_timestamp_microseconds();
-                if (end - start >= ms_to_wait) {
+                if (end - start > ms_to_wait &&
+                    apu_get_queued(sys->apu) < sys->apu->spec.freq) {
                     start       = end;
                     should_draw = 1;
                 }
