@@ -6,7 +6,8 @@ Cross-platform (Linux, MacOS, Windows) and with **online multiplayer** support!
 
 ![screencast](img/screencast.gif)
 
-### Build
+# Build
+## Build (Linux/MacOS)
 
 Install SDL2 and SDL2_ttf and build using cmake:
 ```
@@ -23,7 +24,7 @@ To enable the Debug "GameView" (showing CPU/PPU state info and enabling single-s
 
 Tested on MacOS and Ubuntu.
 
-### Windows Build (MinGW)
+## Build (Windows with MinGW)
 
 Install MinGW.
 
@@ -36,7 +37,8 @@ $ cmake -DWIN=on -DWIN_SDL2=/path/to/MinGW/SDL2 -DCMAKE_BUILD_TYPE=Release ../sr
 $ make
 ```
 
-### Usage
+# Usage
+## Single Player
 
 From the build directory:
 
@@ -46,7 +48,7 @@ $ ./borznes /path/to/rom
 
 beware that it expects "courier.ttf" in the pwd (yeah, it's ugly).
 
-### Multiplayer Usage
+## Multiplayer
 
 On Machine 1:
 ```
@@ -62,7 +64,7 @@ $ ./borznes_multi /path/to/rom 10.0.0.1
 
 where `10.0.0.1` is the IP of Machine1.
 
-### Keymappings
+# Keymappings
 
 The (hardcoded) keymappings for Player1 are the following:
 
@@ -84,11 +86,12 @@ The (hardcoded) keymappings for Player1 are the following:
 | Mute                             | M          |                              |
 | Quit                             | Q          |                              |
 
-### Implemented Mappers
+# Implemented Mappers
 
 NROM(000), MMC1(001), NROM(003), MMC3(004), AxROM(007), Camerica(071)
 
-### Todo
+# Todo
+- Controller support
 - Config file for keymappings and other stuff
 - Check that P1 and P2 are running the same ROM (P1 should send an hash of its ROM)
 - Support state saving in multiplayer (it should be easy, P1 should send a state to P2 via socket)
