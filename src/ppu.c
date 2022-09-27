@@ -151,7 +151,8 @@ static void updated_nmi(Ppu* ppu)
     int trigger_nmi =
         (ppu->status_flags.in_vblank) && (ppu->ctrl_flags.trigger_nmi);
     if (trigger_nmi && !ppu->nmi_prev) {
-        ppu->nmi_delay = 1;
+        // Fixes Bomberman II
+        ppu->nmi_delay = 13;
     }
     ppu->nmi_prev = trigger_nmi;
 }
@@ -233,8 +234,8 @@ static void render_pixel(Ppu* ppu)
             (ppu->mask_flags.show_background && ppu->mask_flags.show_sprites);
         must_set_zero_hit =
             must_set_zero_hit &&
-            !((x >= 1 && x <= 8) && (ppu->mask_flags.show_left_sprites ||
-                                     ppu->mask_flags.show_left_background));
+            !((x >= 0 && x <= 7) && (!ppu->mask_flags.show_left_sprites ||
+                                     !ppu->mask_flags.show_left_background));
         must_set_zero_hit = must_set_zero_hit && x != 255;
 
         if (must_set_zero_hit)
