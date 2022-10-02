@@ -6,6 +6,7 @@
 #include "logging.h"
 #include "ppu.h"
 #include "apu.h"
+#include "async.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -83,47 +84,9 @@ static int open_p2_socket(const char* ip, int port)
     return fd;
 }
 
-static int64_t read_all(int fd, void* o_buf, int64_t len)
-{
-    if (len <= 0)
-        panic("read_all(): invalid len");
-
-    void*   pt     = o_buf;
-    int64_t n_read = 0;
-    while (n_read < len) {
-        int64_t r = recv(fd, pt, len - n_read, 0);
-        if (r < 0)
-            panic("read_all(): read failed [%s]", strerror(errno));
-        if (r == 0)
-            panic("read_all(): peer disconnected");
-        pt += r;
-        n_read += r;
-    }
-    return n_read;
-}
-
-static int64_t write_all(int fd, void* i_buf, int64_t len)
-{
-    if (len <= 0)
-        panic("write_all(): invalid len");
-
-    void*   pt      = i_buf;
-    int64_t n_wrote = 0;
-    while (n_wrote < len) {
-        int64_t r = send(fd, pt, len - n_wrote, 0);
-        if (r < 0)
-            panic("write_all(): write failed [%s]", strerror(errno));
-        if (r == 0)
-            panic("write_all(): peer disconnected");
-        pt += r;
-        n_wrote += r;
-    }
-    return n_wrote;
-}
-
 static int estimate_latency(int fd)
 {
-    const int N     = 100;
+    const int N     = 50;
     long      start = get_timestamp_microseconds();
     for (int i = 0; i < N; ++i) {
         char a;
@@ -163,7 +126,8 @@ int main(int argc, char const* argv[])
         printf("player 2 connected from %s\n", inet_ntoa(client_addr.sin_addr));
 
         static char magic[8];
-        if (read_all(fd1, &magic, 7) != 7 || memcmp(magic, "borzNES", 7) != 0) {
+        if (sync_recv(fd1, &magic, 7) != 7 ||
+            memcmp(magic, "borzNES", 7) != 0) {
             panic("handshake failed (msg=\"%s\")", magic);
         }
 
@@ -177,7 +141,7 @@ int main(int argc, char const* argv[])
         }
 
         int be_sync_frame_count = htonl(sync_frame_count);
-        if (write_all(fd1, &be_sync_frame_count, sizeof(be_sync_frame_count)) !=
+        if (sync_send(fd1, &be_sync_frame_count, sizeof(be_sync_frame_count)) !=
             sizeof(be_sync_frame_count)) {
             panic("unable to send sync_frame_count");
         }
@@ -188,7 +152,7 @@ int main(int argc, char const* argv[])
 
         is_p1 = 0;
         fd1   = open_p2_socket(argv[2], BORZNES_DEFAULT_PORT);
-        if (write_all(fd1, "borzNES", 7) != 7)
+        if (sync_send(fd1, "borzNES", 7) != 7)
             panic("write failed");
         printf("connected!\n");
 
@@ -196,7 +160,7 @@ int main(int argc, char const* argv[])
         printf("estimated latency: %ld ms\n", latency);
 
         int be_sync_frame_count;
-        if (read_all(fd1, &be_sync_frame_count, sizeof(be_sync_frame_count)) !=
+        if (sync_recv(fd1, &be_sync_frame_count, sizeof(be_sync_frame_count)) !=
             sizeof(be_sync_frame_count)) {
             panic("unable to recv sync_frame_count");
         }
@@ -206,9 +170,10 @@ int main(int argc, char const* argv[])
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
 
-    System*     sys   = system_build(argv[1]);
-    GameWindow* gw    = simple_gw_build(sys);
-    EmuState    state = DRAW_FRAME;
+    AsyncContext* ac    = async_init();
+    System*       sys   = system_build(argv[1]);
+    GameWindow*   gw    = simple_gw_build(sys);
+    EmuState      state = DRAW_FRAME;
 
     gamewindow_draw(gw);
 
@@ -298,14 +263,16 @@ int main(int argc, char const* argv[])
         }
 
         if (state == DRAW_FRAME) {
+            if (sync_count == 0) {
+                freezed_p1 = p1;
+                async_send(ac, fd1, &freezed_p1.state,
+                           sizeof(freezed_p1.state));
+                start_latency_calc = get_timestamp_microseconds();
+            }
+
             if (++sync_count == sync_frame_count) {
                 sync_count = 0;
                 state      = WAIT_FOR_KEY;
-                if (write_all(fd1, &p1.state, sizeof(p1.state)) !=
-                    sizeof(p1.state))
-                    panic("unable to send keys");
-                start_latency_calc = get_timestamp_microseconds();
-                freezed_p1         = p1;
             } else {
                 state = WAIT_UNTIL_READY;
             }
@@ -317,7 +284,7 @@ int main(int argc, char const* argv[])
 
             microseconds_to_wait = 1000000ll * cycles / sys->cpu_freq;
         } else if (state == WAIT_FOR_KEY) {
-            if (read_all(fd1, &p2.state, sizeof(p2.state)) != sizeof(p2.state))
+            if (sync_recv(fd1, &p2.state, sizeof(p2.state)) != sizeof(p2.state))
                 panic("unable to read keys");
             latency =
                 (get_timestamp_microseconds() - start_latency_calc) / 1000l;

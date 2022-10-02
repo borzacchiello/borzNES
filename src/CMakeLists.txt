@@ -48,20 +48,18 @@ endif ()
 
 add_executable ( borznes_multi
     ${borzNES_src}
+    async.c
     borznes_multi.c )
 
 add_executable ( borznes
     ${borzNES_src}
     borznes.c )
 
-target_link_libraries ( borznes_multi LINK_PUBLIC SDL2 SDL2_ttf )
-if ( WIN )
-    target_link_libraries ( borznes_multi LINK_PUBLIC ws2_32 )
-endif ()
-
 target_link_libraries ( borznes LINK_PUBLIC SDL2 SDL2_ttf )
+target_link_libraries ( borznes_multi LINK_PUBLIC SDL2 SDL2_ttf )
+
 if ( WIN )
-    target_link_libraries ( borznes LINK_PUBLIC ws2_32 )
+    target_link_libraries ( borznes_multi LINK_PUBLIC ws2_32 pthread )
 endif ()
 
 add_custom_command (
@@ -72,14 +70,20 @@ add_custom_command (
 
 if ( WIN )
     add_custom_command (
-            TARGET borznes POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy
-                    ${WIN_SDL2}/bin/SDL2.dll
-                    ${CMAKE_CURRENT_BINARY_DIR}/SDL2.dll )
+        TARGET borznes POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+                ${WIN_SDL2}/bin/SDL2.dll
+                ${CMAKE_CURRENT_BINARY_DIR}/SDL2.dll )
 
     add_custom_command (
         TARGET borznes POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
                 ${WIN_SDL2}/bin/SDL2_ttf.dll
                 ${CMAKE_CURRENT_BINARY_DIR}/SDL2_ttf.dll )
+
+    add_custom_command (
+        TARGET borznes_multi POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+                /usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll
+                ${CMAKE_CURRENT_BINARY_DIR}/libwinpthread-1.dll )
 endif ()
