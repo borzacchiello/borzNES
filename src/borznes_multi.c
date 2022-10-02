@@ -302,6 +302,7 @@ int main(int argc, char const* argv[])
 
     gamewindow_destroy(gw);
     system_destroy(sys);
+    async_destroy(ac);
 
     SDL_Quit();
 
