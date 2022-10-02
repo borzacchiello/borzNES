@@ -16,12 +16,15 @@
 static void* thread_fun(void* _arg)
 {
     AsyncContext* arg = (AsyncContext*)_arg;
-    pthread_mutex_lock(&arg->mutex_1);
+    if (pthread_mutex_lock(&arg->mutex_1) != 0)
+        panic("thread_fun(): unable to lock mutex_1");
 
     while (arg->should_run) {
         sync_send(arg->fd, &arg->buf, arg->buf_size);
-        pthread_mutex_unlock(&arg->mutex_2);
-        pthread_mutex_lock(&arg->mutex_1);
+        if (pthread_mutex_unlock(&arg->mutex_2) != 0)
+            panic("thread_fun(): unable to unlock mutex_2");
+        if (pthread_mutex_lock(&arg->mutex_1) != 0)
+            panic("thread_fun(): unable to lock mutex_1");
     }
     return NULL;
 }
@@ -29,12 +32,14 @@ static void* thread_fun(void* _arg)
 AsyncContext* async_init()
 {
     AsyncContext* ac = (AsyncContext*)malloc_or_fail(sizeof(AsyncContext));
+    ac->should_run   = 1;
 
-    pthread_mutex_init(&ac->mutex_1, NULL);
-    pthread_mutex_init(&ac->mutex_2, NULL);
-
-    pthread_mutex_lock(&ac->mutex_1);
-
+    if (pthread_mutex_init(&ac->mutex_1, NULL) != 0)
+        panic("async_init(): unable to initialize mutex_1");
+    if (pthread_mutex_init(&ac->mutex_2, NULL) != 0)
+        panic("async_init(): unable to initialize mutex_2");
+    if (pthread_mutex_lock(&ac->mutex_1) != 0)
+        panic("async_init(): unable to lock mutex_1");
     if (pthread_create(&ac->thread, NULL, &thread_fun, ac) != 0)
         panic("pthread_create failed");
 
@@ -44,11 +49,14 @@ AsyncContext* async_init()
 void async_destroy(AsyncContext* ac)
 {
     ac->should_run = 0;
-    pthread_mutex_unlock(&ac->mutex_1);
-    pthread_join(ac->thread, NULL);
-
-    pthread_mutex_destroy(&ac->mutex_1);
-    pthread_mutex_destroy(&ac->mutex_2);
+    if (pthread_mutex_unlock(&ac->mutex_1) != 0)
+        panic("async_destroy(): unable to unlock mutex_1");
+    if (pthread_join(ac->thread, NULL) != 0)
+        panic("async_destroy(): pthread_join failed");
+    if (pthread_mutex_destroy(&ac->mutex_1) != 0)
+        panic("async_destroy(): unable to destroy mutex_1");
+    if (pthread_mutex_destroy(&ac->mutex_2) != 0)
+        panic("async_destroy(): unable to destroy mutex_2");
     free(ac);
 }
 
@@ -56,12 +64,13 @@ void async_send(AsyncContext* ac, int fd, const void* i_buf, int64_t size)
 {
     if (size > sizeof(ac->buf))
         panic("Unable to send more than %u bytes", sizeof(ac->buf));
-
-    pthread_mutex_lock(&ac->mutex_2);
+    if (pthread_mutex_lock(&ac->mutex_2) != 0)
+        panic("async_send(): unable to lock mutex_2");
     ac->fd       = fd;
     ac->buf_size = size;
     memcpy(ac->buf, i_buf, size);
-    pthread_mutex_unlock(&ac->mutex_1);
+    if (pthread_mutex_unlock(&ac->mutex_1) != 0)
+        panic("async_send(): unable to unlock mutex_1");
 }
 
 int64_t sync_send(int fd, const void* i_buf, int64_t len)
