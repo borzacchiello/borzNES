@@ -33,7 +33,7 @@ Download SDL2 and SDL2_ttf for MinGW and copy the content of both folders (mergi
 Run:
 ```
 $ mkdir build_win
-$ cmake -DWIN=on -DWIN_SDL2=/path/to/MinGW/SDL2 -DCMAKE_BUILD_TYPE=Release ../src
+$ cmake -DWIN=on -DWIN_SDL2=/path/to/MinGW/SDL2/x86_64-w64-mingw32/ -DCMAKE_BUILD_TYPE=Release ../src
 $ make
 ```
 
@@ -62,7 +62,7 @@ On Machine 2:
 $ ./borznes_multi /path/to/rom 10.0.0.1
 ```
 
-where `10.0.0.1` is the IP of Machine1.
+where `10.0.0.1` is the IP of Machine 1.
 
 # Keymappings
 
@@ -103,4 +103,4 @@ NROM(000), MMC1(001), NROM(003), MMC3(004), AxROM(007), Camerica(071)
 - Series on developing a NES emulator in C++ by "javidx9" (OneLoneCoder): https://www.youtube.com/playlist?list=PLrOv9FMX8xJHqMvSGB_9G9nZZ_4IgteYf
 - Series on developing a NES emulator in C++ by "Systems with JT": https://www.youtube.com/playlist?list=PLP2yfE2-FXdQBRpnZbcObTe33-eSeSRYl
 - NesDEV wiki: https://www.nesdev.org/wiki/Nesdev_Wiki
-- Accurate description of the first 90 mappers: https://www.romhacking.net/documents/362/
+- Accurate description of most mappers: https://www.romhacking.net/documents/362/
