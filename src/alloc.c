@@ -46,6 +46,9 @@ Buffer read_buffer(FILE* ifile)
     if (fread(&size, 1, sizeof(size), ifile) != sizeof(size))
         panic("unable to read buffer (size)");
 
+    if (size > 10000000u)
+        panic("trying to read a buffer > 10 MB");
+
     Buffer res = buf_malloc(size);
     if (fread(res.buffer, 1, res.size, ifile) != res.size)
         panic("unable to read buffer");

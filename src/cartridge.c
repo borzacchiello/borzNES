@@ -60,9 +60,8 @@ static char* get_sav_path(const char* fpath)
     return res;
 }
 
-Cartridge* cartridge_load(const char* path)
+Cartridge* cartridge_load_from_buffer(Buffer raw)
 {
-    Buffer raw = read_file_raw(path);
     if (raw.size < HEADER_SIZE)
         panic("not a valid cartridge");
 
@@ -70,7 +69,8 @@ Cartridge* cartridge_load(const char* path)
         panic("not a valid cartridge (wrong magic)");
 
     Cartridge* cart = malloc_or_fail(sizeof(Cartridge));
-    cart->fpath     = strdup(path);
+    cart->fpath     = NULL;
+    cart->sav_path  = NULL;
 
     cart->PRG_size = (uint32_t)raw.buffer[4] << 14u;
     cart->CHR_size = (uint32_t)raw.buffer[5] << 13u;
@@ -89,14 +89,15 @@ Cartridge* cartridge_load(const char* path)
     uint8_t mirror_bit2 = (flag_6 & MIRROR_ALL_MASK) ? 1 : 0;
     cart->mirror        = mirror_bit1 | (mirror_bit2 << 1);
 
-    cart->battery  = (flag_6 & BATTERY_MASK) > 0;
-    cart->mapper   = (flag_6 >> 4) | (flag_7 & 0xf0);
-    cart->sav_path = cart->battery ? get_sav_path(path) : NULL;
+    cart->battery = (flag_6 & BATTERY_MASK) > 0;
+    cart->mapper  = (flag_6 >> 4) | (flag_7 & 0xf0);
 
     if (flag_8 == 0)
         flag_8 = 1;
     cart->SRAM_size = (uint32_t)flag_8 << 13;
-    cart->SRAM      = malloc_or_fail(cart->SRAM_size);
+    if (cart->SRAM_size > raw.size)
+        panic("Invalid SRAM_size");
+    cart->SRAM = malloc_or_fail(cart->SRAM_size);
 
     uint32_t file_off = HEADER_SIZE;
     if (flag_6 & TRAINER_MASK) {
@@ -130,6 +131,17 @@ Cartridge* cartridge_load(const char* path)
 
     if (file_off != raw.size)
         panic("not a valid cartridge (unread data at the end)");
+
+    return cart;
+}
+
+Cartridge* cartridge_load(const char* path)
+{
+    Buffer raw = read_file_raw(path);
+
+    Cartridge* cart = cartridge_load_from_buffer(raw);
+    cart->fpath     = strdup(path);
+    cart->sav_path  = cart->battery ? get_sav_path(path) : NULL;
 
     cartridge_load_sav(cart);
     free(raw.buffer);

@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+struct Buffer;
+
 typedef enum {
     MIRROR_HORIZONTAL = 0,
     MIRROR_VERTICAL   = 1,
@@ -26,6 +28,8 @@ typedef struct Cartridge {
     Mirroring mirror;
     uint8_t   battery;
 } Cartridge;
+
+Cartridge* cartridge_load_from_buffer(struct Buffer raw);
 
 Cartridge* cartridge_load(const char* path);
 void       cartridge_unload(Cartridge* cart);

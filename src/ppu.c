@@ -254,14 +254,16 @@ static void render_pixel(Ppu* ppu)
         return;
 #endif
     uint32_t rgb = palette_colors[memory_read(ppu->mem, 0x3F00u + color)];
-    gamewindow_set_pixel(ppu->gw, x, y, rgb);
+    if (ppu->gw)
+        gamewindow_set_pixel(ppu->gw, x, y, rgb);
 }
 
 static void set_vertical_blank(Ppu* ppu)
 {
     ppu->status_flags.in_vblank = 1;
     updated_nmi(ppu);
-    gamewindow_draw(ppu->gw);
+    if (ppu->gw)
+        gamewindow_draw(ppu->gw);
 }
 
 static void clear_vertical_blank(Ppu* ppu)
@@ -356,9 +358,6 @@ static void update_cycle(Ppu* ppu)
 
 void ppu_step(Ppu* ppu)
 {
-    if (ppu->gw == NULL)
-        panic("ppu_step(): gw is NULL");
-
 #if PRINT_PPU_STATE
     info("%s", ppu_tostring_short(ppu));
 #endif

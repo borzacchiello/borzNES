@@ -12,6 +12,7 @@ struct Ppu;
 struct Apu;
 struct Cartridge;
 struct Mapper;
+struct Buffer;
 
 typedef enum { P1 = 0, P2 = 1 } ControllerNum;
 
