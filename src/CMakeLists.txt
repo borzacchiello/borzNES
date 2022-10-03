@@ -65,7 +65,7 @@ endif ()
 add_custom_command (
         TARGET borznes POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
-                ${CMAKE_SOURCE_DIR}/../font/courier.ttf
+                ${CMAKE_SOURCE_DIR}/../resources/courier.ttf
                 ${CMAKE_CURRENT_BINARY_DIR}/courier.ttf )
 
 if ( WIN )

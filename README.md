@@ -4,7 +4,7 @@ Yet another NES emulator, written just for fun :)
 
 Cross-platform (Linux, MacOS, Windows) and with **online multiplayer** support!
 
-![screencast](img/screencast.gif)
+![screencast](resources/screencast.gif)
 
 # Build
 ## Build (Linux/MacOS)
