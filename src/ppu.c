@@ -183,12 +183,12 @@ static void render_pixel(Ppu* ppu)
     uint8_t sprite_pixel = 0;
     if (ppu->mask_flags.show_sprites) {
         for (uint8_t i = 0; i < ppu->sprite_count; ++i) {
-            int off = ((int)ppu->cycle - 1) - ppu->sprite_positions[i];
+            int off = ((int)ppu->cycle - 1) - ppu->sprites[i].position;
             if (off < 0 || off > 7)
                 continue;
             off = 7 - off;
 
-            uint8_t pixel = (ppu->sprite_patterns[i] >> (off * 4)) & 0x0F;
+            uint8_t pixel = (ppu->sprites[i].pattern >> (off * 4)) & 0x0F;
             if (IS_PIXEL_TRANSPARENT(pixel))
                 continue;
 
@@ -228,7 +228,7 @@ static void render_pixel(Ppu* ppu)
            (2-bit color index from the CHR pattern is %00).
         5. If sprite 0 hit has already occurred this frame.
         */
-        uint8_t must_set_zero_hit = ppu->sprite_indexes[sprite_id] == 0;
+        uint8_t must_set_zero_hit = ppu->sprites[sprite_id].index == 0;
         must_set_zero_hit =
             must_set_zero_hit &&
             (ppu->mask_flags.show_background && ppu->mask_flags.show_sprites);
@@ -241,7 +241,7 @@ static void render_pixel(Ppu* ppu)
         if (must_set_zero_hit)
             ppu->status_flags.sprite_zero_hit = 1;
 
-        if (ppu->sprite_priorities[sprite_id] == 0)
+        if (ppu->sprites[sprite_id].priority == 0)
             color = sprite_pixel | 0x10;
         else
             color = bg_pixel;
@@ -461,17 +461,17 @@ void ppu_step(Ppu* ppu)
                     int32_t row = (int32_t)ppu->scanline - (int32_t)y;
                     if (row < 0 || row >= h)
                         continue;
-                    if (count < 8) {
-                        ppu->sprite_patterns[count] =
+                    if (count < MAX_SPRITES) {
+                        ppu->sprites[count].pattern =
                             fetch_sprite_pattern(ppu, i, (uint8_t)row);
-                        ppu->sprite_positions[count]  = x;
-                        ppu->sprite_priorities[count] = (a >> 5) & 1;
-                        ppu->sprite_indexes[count]    = i;
+                        ppu->sprites[count].position = x;
+                        ppu->sprites[count].priority = (a >> 5) & 1;
+                        ppu->sprites[count].index    = i;
                     }
                     count += 1;
                 }
-                if (count > 8) {
-                    count                             = 8;
+                if (count > MAX_SPRITES) {
+                    count                             = MAX_SPRITES;
                     ppu->status_flags.sprite_overflow = 1;
                 }
                 ppu->sprite_count = count;
