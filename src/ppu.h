@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#define MAX_SPRITES 8
+
 struct GameWindow;
 struct System;
 struct Memory;
@@ -51,6 +53,13 @@ typedef struct PpuMaskFlags {
     };
 } PpuMaskFlags;
 
+typedef struct Sprite {
+    uint32_t pattern;
+    uint8_t  position;
+    uint8_t  priority;
+    uint8_t  index;
+} Sprite;
+
 typedef struct Ppu {
     struct Memory*     mem;
     struct System*     sys;
@@ -78,11 +87,8 @@ typedef struct Ppu {
     uint16_t cycle;    // 0-340
     uint16_t scanline; // 0-261
 
-    uint8_t  sprite_count;
-    uint32_t sprite_patterns[8];
-    uint8_t  sprite_positions[8];
-    uint8_t  sprite_priorities[8];
-    uint8_t  sprite_indexes[8];
+    uint8_t sprite_count;
+    Sprite  sprites[MAX_SPRITES];
 
     int32_t nmi_prev;
     int32_t nmi_delay;

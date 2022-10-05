@@ -69,11 +69,11 @@ static uint8_t cpu_memory_read(void* _mem, uint16_t addr)
     if (addr == 0x4017) {
         return system_get_controller_val(mem->sys, P2);
     }
-    if (addr < 0x6000) {
+    if (addr <= 0x401F) {
         warning("0x%04x: I/O read not currently supported", addr);
         return 0;
     }
-    if (addr >= 0x6000) {
+    if (addr >= 0x4020) {
         return mapper_read(mem->sys->mapper, addr);
     }
 
@@ -115,12 +115,12 @@ static void cpu_memory_write(void* _mem, uint16_t addr, uint8_t value)
         apu_write_register(apu, addr, value);
         return;
     }
-    if (addr < 0x6000) {
+    if (addr <= 0x401F) {
         warning("0x%04x [0x%02x]: I/O write not currently supported", addr,
                 value);
         return;
     }
-    if (addr >= 0x6000) {
+    if (addr >= 0x4020) {
         mapper_write(mem->sys->mapper, addr, value);
         return;
     }

@@ -4,6 +4,7 @@
 #include "logging.h"
 #include "ppu.h"
 #include "system.h"
+#include "memory.h"
 #include "6502_cpu.h"
 
 #include <assert.h>
@@ -91,7 +92,8 @@ static uint8_t NROM_read(void* _map, uint16_t addr)
         return map->cart->SRAM[index];
     }
 
-    panic("unable to read at address 0x%04x from NROM mapper", addr);
+    warning("unexpected read at address 0x%04x from NROM mapper", addr);
+    return 0;
 }
 
 static void NROM_write(void* _map, uint16_t addr, uint8_t value)
@@ -105,8 +107,8 @@ static void NROM_write(void* _map, uint16_t addr, uint8_t value)
         int index              = addr - 0x6000;
         map->cart->SRAM[index] = value;
     } else {
-        panic("unable to write at address 0x%04x from NROM mapper [0x%02x]",
-              addr, value);
+        warning("unexpected write at address 0x%04x from NROM mapper [0x%02x]",
+                addr, value);
     }
 }
 
@@ -271,7 +273,8 @@ static uint8_t MMC1_read(void* _map, uint16_t addr)
         return map->cart->SRAM[addr - 0x6000];
     }
 
-    panic("unable to read at address 0x%04x from MMC1 mapper", addr);
+    warning("unexpected read at address 0x%04x from MMC1 mapper", addr);
+    return 0;
 }
 
 static void MMC1_write(void* _map, uint16_t addr, uint8_t value)
@@ -292,8 +295,8 @@ static void MMC1_write(void* _map, uint16_t addr, uint8_t value)
         return;
     }
 
-    panic("unable to write at address 0x%04x from MMC1 mapper [0x%02x]", addr,
-          value);
+    warning("unexpected write at address 0x%04x from MMC1 mapper [0x%02x]",
+            addr, value);
 }
 
 GEN_SERIALIZER(MMC1)
@@ -459,7 +462,8 @@ static uint8_t MMC3_read(void* _map, uint16_t addr)
         return map->cart->SRAM[addr - 0x6000];
     }
 
-    panic("unable to read at address 0x%04x from MMC3 mapper", addr);
+    warning("unexpected read at address 0x%04x from MMC3 mapper", addr);
+    return 0;
 }
 
 static void MMC3_write(void* _map, uint16_t addr, uint8_t value)
@@ -480,8 +484,8 @@ static void MMC3_write(void* _map, uint16_t addr, uint8_t value)
         return;
     }
 
-    panic("unable to write at address 0x%04x from MMC3 mapper [0x%02x]", addr,
-          value);
+    warning("unexpected write at address 0x%04x from MMC3 mapper [0x%02x]",
+            addr, value);
 }
 
 GEN_SERIALIZER(MMC3)
@@ -533,7 +537,8 @@ static uint8_t CNROM_read(void* _map, uint16_t addr)
         return map->cart->SRAM[addr - 0x6000];
     }
 
-    panic("unexpected read @ 0x%04x in CNROM mapper", addr);
+    warning("unexpected read @ 0x%04x in CNROM mapper", addr);
+    return 0;
 }
 
 static void CNROM_write(void* _map, uint16_t addr, uint8_t value)
@@ -554,7 +559,7 @@ static void CNROM_write(void* _map, uint16_t addr, uint8_t value)
         return;
     }
 
-    panic("unexpected write @ 0x%04x in CNROM mapper [0x%02x]", addr, value);
+    warning("unexpected write @ 0x%04x in CNROM mapper [0x%02x]", addr, value);
 }
 
 GEN_SERIALIZER(CNROM)
@@ -588,7 +593,8 @@ static uint8_t AxROM_read(void* _map, uint16_t addr)
         return map->cart->SRAM[addr - 0x6000];
     }
 
-    panic("unexpected read @ 0x%04x in AxROM mapper", addr);
+    warning("unexpected read @ 0x%04x in AxROM mapper", addr);
+    return 0;
 }
 
 static void AxROM_write(void* _map, uint16_t addr, uint8_t value)
@@ -611,7 +617,7 @@ static void AxROM_write(void* _map, uint16_t addr, uint8_t value)
         return;
     }
 
-    panic("unexpected write @ 0x%04x in AxROM mapper [0x%02x]", addr, value);
+    warning("unexpected write @ 0x%04x in AxROM mapper [0x%02x]", addr, value);
 }
 
 GEN_SERIALIZER(AxROM)
@@ -657,7 +663,8 @@ static uint8_t Map071_read(void* _map, uint16_t addr)
         return map->cart->SRAM[addr - 0x6000];
     }
 
-    panic("unexpected read @ 0x%04x in Map071 mapper", addr);
+    warning("unexpected read @ 0x%04x in Map071 mapper", addr);
+    return 0;
 }
 
 static void Map071_write(void* _map, uint16_t addr, uint8_t value)
@@ -685,11 +692,162 @@ static void Map071_write(void* _map, uint16_t addr, uint8_t value)
         return;
     }
 
-    panic("unexpected write @ 0x%04x in Map071 mapper [0x%02x]", addr, value);
+    warning("unexpected write @ 0x%04x in Map071 mapper [0x%02x]", addr, value);
 }
 
 GEN_SERIALIZER(Map071)
 GEN_DESERIALIZER(Map071)
+
+// MAPPER 163: FC_001
+// Thank you fceux...
+
+typedef struct FC_001 {
+    Cartridge* cart;
+    uint8_t    laststrobe, trigger;
+    uint8_t    reg0, reg1, reg2, reg3;
+    int32_t    bank_chr[2];
+    int32_t    bank_prg;
+} FC_001;
+
+static inline int32_t FC_001_calc_prg_bank_offset(FC_001* map, int32_t idx)
+{
+    return calc_prg_bank_offset(map->cart, idx, 0x8000);
+}
+
+static inline int32_t FC_001_calc_chr_bank_offset(FC_001* map, int32_t idx)
+{
+    return calc_chr_bank_offset(map->cart, idx, 0x1000);
+}
+
+static void FC_001_sync(FC_001* map)
+{
+    map->bank_chr[0] = FC_001_calc_chr_bank_offset(map, 0);
+    map->bank_chr[1] = FC_001_calc_chr_bank_offset(map, 1);
+
+    map->bank_prg =
+        FC_001_calc_prg_bank_offset(map, (map->reg0 << 4) | (map->reg1 & 0xF));
+}
+
+static FC_001* FC_001_build(Cartridge* cart)
+{
+    FC_001* map = calloc_or_fail(sizeof(FC_001));
+    map->cart   = cart;
+
+    map->laststrobe = 1;
+    map->reg0       = 3;
+    map->reg3       = 7;
+    FC_001_sync(map);
+    return map;
+}
+
+static uint8_t FC_001_read(void* _map, uint16_t addr)
+{
+    FC_001* map = (FC_001*)_map;
+    if (addr < 0x2000) {
+        uint16_t bank = addr / 0x1000;
+        uint16_t off  = addr % 0x1000;
+        return map->cart->CHR[map->bank_chr[bank] + off];
+    }
+    if (addr >= 0x8000) {
+        uint16_t off = addr - 0x8000;
+        return map->cart->PRG[map->bank_prg + off];
+    }
+    if (addr >= 0x5000 && addr <= 0x50FF) {
+        return (map->reg2 | map->reg0 | map->reg1 | map->reg3) ^ 0xff;
+    }
+    if (addr >= 0x5100 && addr <= 0x51FF) {
+        return 4;
+    }
+    if (addr >= 0x5200 && addr <= 0x52FF) {
+        return 4;
+    }
+    if (addr >= 0x5300 && addr <= 0x53FF) {
+        return 4;
+    }
+    if (addr >= 0x5500 && addr <= 0x55FF) {
+        if (map->trigger)
+            return map->reg2 | map->reg1;
+        return 0;
+    }
+    if (addr >= 0x6000) {
+        return map->cart->SRAM[addr - 0x6000];
+    }
+
+    warning("unexpected read @ 0x%04x in FC_001 mapper", addr);
+    return 0;
+}
+
+static void FC_001_write(void* _map, uint16_t addr, uint8_t value)
+{
+    FC_001* map = (FC_001*)_map;
+    if (addr < 0x2000) {
+        map->cart->CHR[addr] = value;
+        return;
+    }
+    if (addr == 0x5101) {
+        if (map->laststrobe && !value)
+            map->trigger ^= 1;
+        map->laststrobe = value;
+        return;
+    }
+    if (addr == 0x5100 && value == 6) {
+        map->bank_prg = FC_001_calc_prg_bank_offset(map, 3);
+        return;
+    }
+    if (addr >= 0x5000 && addr <= 0x50FF) {
+        map->reg1 = value;
+        FC_001_sync(map);
+        if (!(map->reg1 & 0x80)) {
+            map->bank_chr[0] = FC_001_calc_chr_bank_offset(map, 0);
+            map->bank_chr[1] = FC_001_calc_chr_bank_offset(map, 1);
+        }
+        return;
+    }
+    if (addr >= 0x5100 && addr <= 0x51FF) {
+        map->reg3 = value;
+        FC_001_sync(map);
+        return;
+    }
+    if (addr >= 0x5200 && addr <= 0x52FF) {
+        map->reg0 = value;
+        FC_001_sync(map);
+        return;
+    }
+    if (addr >= 0x5300 && addr <= 0x53FF) {
+        map->reg2 = value;
+        return;
+    }
+    if (addr >= 0x6000) {
+        map->cart->SRAM[addr - 0x6000] = value;
+        return;
+    }
+
+    warning("unexpected write @ 0x%04x in FC_001 mapper [0x%02x]", addr, value);
+}
+
+static void FC_001_step(void* _map, System* sys)
+{
+    FC_001* map = (FC_001*)_map;
+    Ppu*    ppu = sys->ppu;
+
+    if (sys->ppu->cycle != 260)
+        return;
+    if (!ppu->mask_flags.show_background && !ppu->mask_flags.show_sprites)
+        return;
+    if (!(map->reg1 & 0x80))
+        return;
+
+    if (ppu->scanline == 239) {
+        map->bank_chr[0] = FC_001_calc_chr_bank_offset(map, 0);
+        map->bank_chr[1] = FC_001_calc_chr_bank_offset(map, 0);
+    } else if (ppu->scanline == 127) {
+        map->bank_chr[0] = FC_001_calc_chr_bank_offset(map, 1);
+        map->bank_chr[1] = FC_001_calc_chr_bank_offset(map, 1);
+    }
+}
+
+GEN_SERIALIZER(FC_001)
+GEN_DESERIALIZER(FC_001)
 
 // Polymorphic Mapper
 Mapper* mapper_build(Cartridge* cart)
@@ -767,6 +925,18 @@ Mapper* mapper_build(Cartridge* cart)
             map->destroy     = &generic_destroy;
             map->serialize   = &Map071_serialize;
             map->deserialize = &Map071_deserialize;
+            break;
+        }
+        case 163: {
+            FC_001* fc_001   = FC_001_build(cart);
+            map->obj         = fc_001;
+            map->name        = "FC_001";
+            map->step        = &FC_001_step;
+            map->read        = &FC_001_read;
+            map->write       = &FC_001_write;
+            map->destroy     = &generic_destroy;
+            map->serialize   = &FC_001_serialize;
+            map->deserialize = &FC_001_deserialize;
             break;
         }
         default:

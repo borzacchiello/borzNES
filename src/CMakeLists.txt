@@ -55,6 +55,12 @@ add_executable ( borznes
     ${borzNES_src}
     borznes.c )
 
+add_executable ( rom_info
+    alloc.c
+    logging.c
+    cartridge.c
+    rom_info.c )
+
 target_link_libraries ( borznes LINK_PUBLIC SDL2 SDL2_ttf )
 target_link_libraries ( borznes_multi LINK_PUBLIC SDL2 SDL2_ttf )
 
