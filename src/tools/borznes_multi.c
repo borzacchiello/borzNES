@@ -172,7 +172,7 @@ int main(int argc, char const* argv[])
         printf("input sync every %u frame\n", sync_frame_count);
     }
 
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK);
 
     InputHandler* ih    = input_handler_build();
     AsyncContext* ac    = async_init();
