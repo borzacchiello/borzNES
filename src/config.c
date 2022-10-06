@@ -21,7 +21,7 @@ void config_load(const char* filename)
         char*    key;
         uint64_t value;
 
-        int nread = sscanf(buf, "%ms : %lx", &key, &value);
+        int nread = sscanf(buf, "%ms : %llx", &key, (unsigned long long*)&value);
         if (nread == EOF)
             // empty line
             continue;
@@ -57,7 +57,7 @@ void config_save(const char* filename)
 
     ConfigNode* curr = g_cfg;
     while (curr != NULL) {
-        fprintf(f, "%s : %lx\n", curr->key, curr->value);
+        fprintf(f, "%s : %llx\n", curr->key, (unsigned long long)curr->value);
         curr = curr->next;
     }
     fclose(f);

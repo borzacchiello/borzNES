@@ -36,7 +36,8 @@ static void generic_destroy(void* _map) { free(_map); }
 static int32_t calc_prg_bank_offset(Cartridge* cart, int32_t idx,
                                     uint32_t bank_size)
 {
-    assert(cart->PRG_size % bank_size == 0 && "incorrect PRG bank_size");
+    if (cart->PRG_size % bank_size != 0)
+        panic("calc_prg_bank_offset(): incorrect PRG bank_size");
 
     idx %= cart->PRG_size / bank_size;
     int32_t off = idx * bank_size;

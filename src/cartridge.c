@@ -75,6 +75,9 @@ Cartridge* cartridge_load_from_buffer(Buffer raw)
     cart->PRG_size = (uint32_t)raw.buffer[4] << 14u;
     cart->CHR_size = (uint32_t)raw.buffer[5] << 13u;
 
+    if (cart->PRG_size == 0)
+        panic("PRG_size cannot be zero");
+
     uint8_t flag_6  = raw.buffer[6];
     uint8_t flag_7  = raw.buffer[7];
     uint8_t flag_8  = raw.buffer[8];
