@@ -17,11 +17,12 @@ void config_load(const char* filename)
     }
 
     static char buf[128];
+    static char tmp[128];
     while (fgets(buf, sizeof(buf), f)) {
-        char*    key;
         uint64_t value;
 
-        int nread = sscanf(buf, "%ms : %llx", &key, (unsigned long long*)&value);
+        tmp[127]  = 0;
+        int nread = sscanf(buf, "%s : %llx", tmp, (unsigned long long*)&value);
         if (nread == EOF)
             // empty line
             continue;
@@ -30,7 +31,7 @@ void config_load(const char* filename)
             panic("config_load(): invalid config line \"%s\"", buf);
 
         ConfigNode* n = malloc_or_fail(sizeof(ConfigNode));
-        n->key        = key;
+        n->key        = strdup(tmp);
         n->value      = value;
         n->next       = g_cfg;
         g_cfg         = n;
