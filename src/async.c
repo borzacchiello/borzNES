@@ -54,9 +54,9 @@ void async_destroy(AsyncContext* ac)
     if (pthread_join(ac->thread, NULL) != 0)
         panic("async_destroy(): pthread_join failed");
     if (pthread_mutex_destroy(&ac->mutex_1) != 0)
-        panic("async_destroy(): unable to destroy mutex_1");
+        warning("async_destroy(): unable to destroy mutex_1");
     if (pthread_mutex_destroy(&ac->mutex_2) != 0)
-        panic("async_destroy(): unable to destroy mutex_2");
+        warning("async_destroy(): unable to destroy mutex_2");
     free(ac);
 }
 
