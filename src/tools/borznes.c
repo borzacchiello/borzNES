@@ -1,10 +1,12 @@
-#include "game_window.h"
-#include "window.h"
-#include "system.h"
-#include "6502_cpu.h"
-#include "memory.h"
-#include "ppu.h"
-#include "apu.h"
+#include "../game_window.h"
+#include "../window.h"
+#include "../system.h"
+#include "../6502_cpu.h"
+#include "../memory.h"
+#include "../ppu.h"
+#include "../apu.h"
+#include "../config.h"
+#include "../input_handler.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -77,7 +79,8 @@ int main(int argc, char const* argv[])
     if (argc < 2)
         usage(argv[0]);
 
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
+    config_load(DEFAULT_CFG_NAME);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK);
 
     System* sys = system_build(argv[1]);
 
@@ -89,6 +92,8 @@ int main(int argc, char const* argv[])
 
     init_rewind();
     gamewindow_draw(gw);
+
+    InputHandler* ih = input_handler_build();
 
     EmulationMode mode = NORMAL_MODE;
     long          start, end, last_rewind_timestamp = 0;
@@ -174,64 +179,9 @@ int main(int argc, char const* argv[])
                         break;
 
 #endif
-                    // GAME KEYBINDINGS
-                    case SDLK_z:
-                        p1.A = 1;
-                        break;
-                    case SDLK_x:
-                        p1.B = 1;
-                        break;
-                    case SDLK_RETURN:
-                        p1.START = 1;
-                        break;
-                    case SDLK_RSHIFT:
-                        p1.SELECT = 1;
-                        break;
-                    case SDLK_UP:
-                        p1.UP = 1;
-                        break;
-                    case SDLK_DOWN:
-                        p1.DOWN = 1;
-                        break;
-                    case SDLK_LEFT:
-                        p1.LEFT = 1;
-                        break;
-                    case SDLK_RIGHT:
-                        p1.RIGHT = 1;
-                        break;
-                }
-            } else if (e.type == SDL_KEYUP) {
-                switch (e.key.keysym.sym) {
-                    // REWIND
-                    case SDLK_r:
-                        mode = NORMAL_MODE;
-                        break;
-                    case SDLK_z:
-                        p1.A = 0;
-                        break;
-                    case SDLK_x:
-                        p1.B = 0;
-                        break;
-                    case SDLK_RETURN:
-                        p1.START = 0;
-                        break;
-                    case SDLK_RSHIFT:
-                        p1.SELECT = 0;
-                        break;
-                    case SDLK_UP:
-                        p1.UP = 0;
-                        break;
-                    case SDLK_DOWN:
-                        p1.DOWN = 0;
-                        break;
-                    case SDLK_LEFT:
-                        p1.LEFT = 0;
-                        break;
-                    case SDLK_RIGHT:
-                        p1.RIGHT = 0;
-                        break;
                 }
             }
+            input_handler_get_input(ih, e, &p1, &p2);
             system_update_controller(sys, P1, p1);
             system_update_controller(sys, P2, p2);
         }
@@ -279,6 +229,8 @@ int main(int argc, char const* argv[])
 
     gamewindow_destroy(gw);
     system_destroy(sys);
+    input_handler_destroy(ih);
+    config_unload();
 
     SDL_Quit();
     return 0;

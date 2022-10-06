@@ -66,7 +66,7 @@ where `10.0.0.1` is the IP of Machine 1.
 
 # Keymappings
 
-The (hardcoded) keymappings for Player1 are the following:
+The (default) keymappings for Player1 are the following:
 
 | action                           | key        | note                         |
 |----------------------------------|------------|------------------------------|
@@ -86,13 +86,13 @@ The (hardcoded) keymappings for Player1 are the following:
 | Mute                             | M          |                              |
 | Quit                             | Q          |                              |
 
+keymappings can be changed using the tool "define_keys"
+
 # Implemented Mappers
 
 NROM(000), MMC1(001), NROM(003), MMC3(004), AxROM(007), Camerica(071), FC-001(163)
 
 # Todo
-- Controller support
-- Config file for keymappings and other stuff
 - Check that P1 and P2 are running the same ROM (P1 should send an hash of its ROM)
 - Support state saving in multiplayer (it should be easy, P1 should send a state to P2 via socket)
 - More mappers

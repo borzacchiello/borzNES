@@ -1,12 +1,14 @@
-#include "game_window.h"
-#include "window.h"
-#include "system.h"
-#include "6502_cpu.h"
-#include "memory.h"
-#include "logging.h"
-#include "ppu.h"
-#include "apu.h"
-#include "async.h"
+#include "../game_window.h"
+#include "../window.h"
+#include "../system.h"
+#include "../6502_cpu.h"
+#include "../memory.h"
+#include "../logging.h"
+#include "../ppu.h"
+#include "../apu.h"
+#include "../async.h"
+#include "../config.h"
+#include "../input_handler.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -108,6 +110,8 @@ int main(int argc, char const* argv[])
     WSAStartup(MAKEWORD(2, 2), &wsaData);
 #endif
 
+    config_load(DEFAULT_CFG_NAME);
+
     int is_p1;
     int fd1 = -1, fd2 = -1;
     if (argc == 2) {
@@ -170,6 +174,7 @@ int main(int argc, char const* argv[])
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
 
+    InputHandler* ih    = input_handler_build();
     AsyncContext* ac    = async_init();
     System*       sys   = system_build(argv[1]);
     GameWindow*   gw    = simple_gw_build(sys);
@@ -205,61 +210,9 @@ int main(int argc, char const* argv[])
                         else
                             apu_pause(sys->apu);
                         break;
-
-                    // KEYMAPPINGS
-                    case SDLK_z:
-                        p1.A = 1;
-                        break;
-                    case SDLK_x:
-                        p1.B = 1;
-                        break;
-                    case SDLK_RETURN:
-                        p1.START = 1;
-                        break;
-                    case SDLK_RSHIFT:
-                        p1.SELECT = 1;
-                        break;
-                    case SDLK_UP:
-                        p1.UP = 1;
-                        break;
-                    case SDLK_DOWN:
-                        p1.DOWN = 1;
-                        break;
-                    case SDLK_LEFT:
-                        p1.LEFT = 1;
-                        break;
-                    case SDLK_RIGHT:
-                        p1.RIGHT = 1;
-                        break;
-                }
-            } else if (e.type == SDL_KEYUP) {
-                switch (e.key.keysym.sym) {
-                    case SDLK_z:
-                        p1.A = 0;
-                        break;
-                    case SDLK_x:
-                        p1.B = 0;
-                        break;
-                    case SDLK_RETURN:
-                        p1.START = 0;
-                        break;
-                    case SDLK_RSHIFT:
-                        p1.SELECT = 0;
-                        break;
-                    case SDLK_UP:
-                        p1.UP = 0;
-                        break;
-                    case SDLK_DOWN:
-                        p1.DOWN = 0;
-                        break;
-                    case SDLK_LEFT:
-                        p1.LEFT = 0;
-                        break;
-                    case SDLK_RIGHT:
-                        p1.RIGHT = 0;
-                        break;
                 }
             }
+            input_handler_get_input(ih, e, &p1, NULL);
         }
 
         if (state == DRAW_FRAME) {
@@ -303,6 +256,7 @@ int main(int argc, char const* argv[])
     gamewindow_destroy(gw);
     system_destroy(sys);
     async_destroy(ac);
+    input_handler_destroy(ih);
 
     SDL_Quit();
 
@@ -318,5 +272,7 @@ int main(int argc, char const* argv[])
     if (fd2 > 0)
         close(fd2);
 #endif
+
+    config_unload();
     return 0;
 }
