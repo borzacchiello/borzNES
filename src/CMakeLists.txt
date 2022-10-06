@@ -21,7 +21,9 @@ set ( borzNES_src
     ppu.c
     system.c
     window.c
-    game_window.c )
+    game_window.c
+    input_handler.c
+    config.c )
 
 set ( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Wall" )
 set ( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer -Wall" )
@@ -49,30 +51,41 @@ endif ()
 add_executable ( borznes_multi
     ${borzNES_src}
     async.c
-    borznes_multi.c )
+    tools/borznes_multi.c )
 
 add_executable ( borznes
     ${borzNES_src}
-    borznes.c )
+    tools/borznes.c )
 
 add_executable ( rom_info
     alloc.c
     logging.c
     cartridge.c
-    rom_info.c )
+    tools/rom_info.c )
+
+add_executable ( define_keys
+    ${borzNES_src}
+    tools/define_keys.c )
 
 target_link_libraries ( borznes LINK_PUBLIC SDL2 SDL2_ttf )
 target_link_libraries ( borznes_multi LINK_PUBLIC SDL2 SDL2_ttf )
+target_link_libraries ( define_keys LINK_PUBLIC SDL2 SDL2_ttf )
 
 if ( WIN )
     target_link_libraries ( borznes_multi LINK_PUBLIC ws2_32 pthread )
 endif ()
 
 add_custom_command (
-        TARGET borznes POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy
-                ${CMAKE_SOURCE_DIR}/../resources/courier.ttf
-                ${CMAKE_CURRENT_BINARY_DIR}/courier.ttf )
+    TARGET borznes POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+            ${CMAKE_SOURCE_DIR}/../resources/courier.ttf
+            ${CMAKE_CURRENT_BINARY_DIR}/courier.ttf )
+
+add_custom_command (
+    TARGET borznes POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+            ${CMAKE_SOURCE_DIR}/../resources/borznes_cfg.txt
+            ${CMAKE_CURRENT_BINARY_DIR}/borznes_cfg.txt )
 
 if ( WIN )
     add_custom_command (
