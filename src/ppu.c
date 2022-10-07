@@ -253,7 +253,7 @@ static void render_pixel(Ppu* ppu)
     if (y < 10 || y >= 230)
         return;
 #endif
-    uint32_t rgb = palette_colors[memory_read(ppu->mem, 0x3F00u + color)];
+    uint32_t rgb = palette_colors[memory_read(ppu->mem, 0x3F00u + color) % 64];
     if (ppu->gw)
         gamewindow_set_pixel(ppu->gw, x, y, rgb);
 }
