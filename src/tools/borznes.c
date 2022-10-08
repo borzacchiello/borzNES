@@ -171,16 +171,19 @@ int main(int argc, char const* argv[])
                     case SDLK_F2:
                         system_load_state(sys, sys->state_save_path);
                         break;
-                        // REWIND
 #if ENABLE_REWIND
-
                     case SDLK_r:
                         mode = REWIND_MODE;
                         break;
-
 #endif
                 }
+            } else if (e.type == SDL_KEYUP) {
+#if ENABLE_REWIND
+                if (e.key.keysym.sym == SDLK_r)
+                    mode = NORMAL_MODE;
+#endif
             }
+
             input_handler_get_input(ih, e, &p1, &p2);
             system_update_controller(sys, P1, p1);
             system_update_controller(sys, P2, p2);

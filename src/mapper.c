@@ -10,6 +10,10 @@
 #include <assert.h>
 #include <string.h>
 
+#define check_inbound(addr, size)                                              \
+    if ((addr) < 0 || (addr) >= (size))                                        \
+        panic("check_inbound failed");
+
 // http://tuxnes.sourceforge.net/mappers-0.80.txt
 
 #define GEN_SERIALIZER(TYPE)                                                   \
@@ -82,10 +86,12 @@ static uint8_t NROM_read(void* _map, uint16_t addr)
         return map->cart->CHR[addr];
     if (addr >= 0xC000) {
         int index = map->prg_bank2 * 0x4000 + (addr - 0xC000);
+        check_inbound(index, map->cart->PRG_size);
         return map->cart->PRG[index];
     }
     if (addr >= 0x8000) {
         int index = map->prg_bank1 * 0x4000 + (addr - 0x8000);
+        check_inbound(index, map->cart->PRG_size);
         return map->cart->PRG[index];
     }
     if (addr >= 0x6000) {
@@ -101,6 +107,7 @@ static void NROM_write(void* _map, uint16_t addr, uint8_t value)
 {
     NROM* map = (NROM*)_map;
     if (addr < 0x2000) {
+        check_inbound(addr, map->cart->CHR_size);
         map->cart->CHR[addr] = value;
     } else if (addr >= 0x8000) {
         map->prg_bank1 = (int)value % map->prg_banks;
@@ -260,15 +267,17 @@ static uint8_t MMC1_read(void* _map, uint16_t addr)
 {
     MMC1* map = (MMC1*)_map;
     if (addr < 0x2000) {
-        uint16_t bank = addr / 0x1000;
-        uint16_t off  = addr % 0x1000;
-        return map->cart->CHR[map->chr_offsets[bank] + off];
+        int32_t base = map->chr_offsets[addr / 0x1000];
+        int32_t off  = addr % 0x1000;
+        check_inbound(base + off, map->cart->CHR_size);
+        return map->cart->CHR[base + off];
     }
     if (addr >= 0x8000) {
         addr -= 0x8000;
-        uint16_t bank = addr / 0x4000;
-        uint16_t off  = addr % 0x4000;
-        return map->cart->PRG[map->prg_offsets[bank] + off];
+        int32_t base = map->prg_offsets[addr / 0x4000];
+        int32_t off  = addr % 0x4000;
+        check_inbound(base + off, map->cart->PRG_size);
+        return map->cart->PRG[base + off];
     }
     if (addr >= 0x6000) {
         return map->cart->SRAM[addr - 0x6000];
@@ -282,9 +291,10 @@ static void MMC1_write(void* _map, uint16_t addr, uint8_t value)
 {
     MMC1* map = (MMC1*)_map;
     if (addr < 0x2000) {
-        uint16_t bank                                = addr / 0x1000;
-        uint16_t off                                 = addr % 0x1000;
-        map->cart->CHR[map->chr_offsets[bank] + off] = value;
+        int32_t base = map->chr_offsets[addr / 0x1000];
+        int32_t off  = addr % 0x1000;
+        check_inbound(base + off, map->cart->CHR_size);
+        map->cart->CHR[base + off] = value;
         return;
     }
     if (addr >= 0x8000) {
@@ -428,9 +438,9 @@ static void MMC3_step(void* _map, System* sys)
 {
     MMC3* map = (MMC3*)_map;
 
-    if (sys->ppu->cycle != 260)
+    if (sys->ppu->cycle != 280)
         return;
-    if (sys->ppu->scanline >= 240)
+    if (sys->ppu->scanline >= 240 && sys->ppu->scanline <= 260)
         return;
     if (!sys->ppu->mask_flags.show_background &&
         !sys->ppu->mask_flags.show_sprites)
@@ -449,15 +459,17 @@ static uint8_t MMC3_read(void* _map, uint16_t addr)
 {
     MMC3* map = (MMC3*)_map;
     if (addr < 0x2000) {
-        uint16_t bank = addr / 0x0400;
-        uint16_t off  = addr % 0x0400;
-        return map->cart->CHR[map->chr_offsets[bank] + off];
+        int32_t base = map->chr_offsets[addr / 0x0400];
+        int32_t off  = addr % 0x0400;
+        check_inbound(base + off, map->cart->CHR_size);
+        return map->cart->CHR[base + off];
     }
     if (addr >= 0x8000) {
         addr -= 0x8000;
-        uint16_t bank = addr / 0x2000;
-        uint16_t off  = addr % 0x2000;
-        return map->cart->PRG[map->prg_offsets[bank] + off];
+        int32_t base = map->prg_offsets[addr / 0x2000];
+        int32_t off  = addr % 0x2000;
+        check_inbound(base + off, map->cart->PRG_size);
+        return map->cart->PRG[base + off];
     }
     if (addr >= 0x6000) {
         return map->cart->SRAM[addr - 0x6000];
@@ -471,9 +483,10 @@ static void MMC3_write(void* _map, uint16_t addr, uint8_t value)
 {
     MMC3* map = (MMC3*)_map;
     if (addr < 0x2000) {
-        uint16_t bank                                = addr / 0x0400;
-        uint16_t off                                 = addr % 0x0400;
-        map->cart->CHR[map->chr_offsets[bank] + off] = value;
+        int32_t base = map->chr_offsets[addr / 0x0400];
+        int32_t off  = addr % 0x0400;
+        check_inbound(base + off, map->cart->CHR_size);
+        map->cart->CHR[base + off] = value;
         return;
     }
     if (addr >= 0x8000) {
@@ -522,16 +535,19 @@ static uint8_t CNROM_read(void* _map, uint16_t addr)
     if (addr < 0x2000) {
         int32_t base = CNROM_calc_chr_bank_offset(map, map->chr_bank);
         int32_t off  = addr;
+        check_inbound(base + off, map->cart->CHR_size);
         return map->cart->CHR[base + off];
     }
     if (addr >= 0xC000) {
         int32_t base = CNROM_calc_prg_bank_offset(map, -1);
         int32_t off  = addr - 0xC000;
+        check_inbound(base + off, map->cart->PRG_size);
         return map->cart->PRG[base + off];
     }
     if (addr >= 0x8000) {
         int32_t base = 0;
         int32_t off  = addr - 0x8000;
+        check_inbound(base + off, map->cart->PRG_size);
         return map->cart->PRG[base + off];
     }
     if (addr >= 0x6000) {
@@ -548,6 +564,7 @@ static void CNROM_write(void* _map, uint16_t addr, uint8_t value)
     if (addr < 0x2000) {
         int32_t base = CNROM_calc_chr_bank_offset(map, map->chr_bank);
         int32_t off  = addr;
+        check_inbound(base + off, map->cart->CHR_size);
         map->cart->CHR[base + off] = value;
         return;
     }
@@ -588,6 +605,7 @@ static uint8_t AxROM_read(void* _map, uint16_t addr)
     }
     if (addr >= 0x8000) {
         int32_t idx = map->prg_bank * 0x8000 + (addr - 0x8000);
+        check_inbound(idx, map->cart->PRG_size);
         return map->cart->PRG[idx];
     }
     if (addr >= 0x6000) {
@@ -661,6 +679,7 @@ static uint8_t MMC2_read(void* _map, uint16_t addr)
             map->latch_0 = 0;
         if (addr == 0x0FE8)
             map->latch_0 = 1;
+        check_inbound(base + off, map->cart->CHR_size);
         return map->cart->CHR[base + off];
     }
     if (addr < 0x2000) {
@@ -676,21 +695,25 @@ static uint8_t MMC2_read(void* _map, uint16_t addr)
     if (addr >= 0xE000) {
         int32_t base = MMC2_calc_prg_bank_offset(map, -1);
         int32_t off  = addr - 0xE000;
+        check_inbound(base + off, map->cart->PRG_size);
         return map->cart->PRG[base + off];
     }
     if (addr >= 0xC000) {
         int32_t base = MMC2_calc_prg_bank_offset(map, -2);
         int32_t off  = addr - 0xC000;
+        check_inbound(base + off, map->cart->PRG_size);
         return map->cart->PRG[base + off];
     }
     if (addr >= 0xA000) {
         int32_t base = MMC2_calc_prg_bank_offset(map, -3);
         int32_t off  = addr - 0xA000;
+        check_inbound(base + off, map->cart->PRG_size);
         return map->cart->PRG[base + off];
     }
     if (addr >= 0x8000) {
         int32_t base = MMC2_calc_prg_bank_offset(map, map->prg_bank);
         int32_t off  = addr - 0x8000;
+        check_inbound(base + off, map->cart->PRG_size);
         return map->cart->PRG[base + off];
     }
     if (addr >= 0x6000) {
@@ -775,11 +798,13 @@ static uint8_t Map071_read(void* _map, uint16_t addr)
     if (addr >= 0xC000) {
         uint32_t base = Map071_calc_prg_bank_offset(map, -1);
         uint32_t off  = addr - 0xC000;
+        check_inbound(base + off, map->cart->PRG_size);
         return map->cart->PRG[base + off];
     }
     if (addr >= 0x8000) {
         uint32_t base = Map071_calc_prg_bank_offset(map, map->prg_bank);
         uint32_t off  = addr - 0x8000;
+        check_inbound(base + off, map->cart->PRG_size);
         return map->cart->PRG[base + off];
     }
     if (addr >= 0x6000) {
@@ -867,12 +892,14 @@ static uint8_t FC_001_read(void* _map, uint16_t addr)
 {
     FC_001* map = (FC_001*)_map;
     if (addr < 0x2000) {
-        uint16_t bank = addr / 0x1000;
-        uint16_t off  = addr % 0x1000;
-        return map->cart->CHR[map->bank_chr[bank] + off];
+        int32_t base = map->bank_chr[addr / 0x1000];
+        int32_t off  = addr % 0x1000;
+        check_inbound(base + off, map->cart->CHR_size);
+        return map->cart->CHR[base + off];
     }
     if (addr >= 0x8000) {
         uint16_t off = addr - 0x8000;
+        check_inbound(map->bank_prg + off, map->cart->PRG_size);
         return map->cart->PRG[map->bank_prg + off];
     }
     if (addr >= 0x5000 && addr <= 0x50FF) {
@@ -953,7 +980,7 @@ static void FC_001_step(void* _map, System* sys)
     FC_001* map = (FC_001*)_map;
     Ppu*    ppu = sys->ppu;
 
-    if (sys->ppu->cycle != 260)
+    if (sys->ppu->cycle != 280)
         return;
     if (!ppu->mask_flags.show_background && !ppu->mask_flags.show_sprites)
         return;
