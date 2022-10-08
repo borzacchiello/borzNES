@@ -90,7 +90,15 @@ keymappings can be changed using the tool "define_keys"
 
 # Implemented Mappers
 
-NROM(000), MMC1(001), NROM(003), MMC3(004), AxROM(007), MMC2(009), Camerica(071), FC-001(163)
+- NROM(000)
+- MMC1(001)
+- UNROM(002)
+- CNROM(003)
+- MMC3(004)
+- AxROM(007)
+- MMC2(009)
+- Camerica(071)
+- FC-001(163)
 
 # Todo
 - Check that P1 and P2 are running the same ROM (P1 should send an hash of its ROM)
