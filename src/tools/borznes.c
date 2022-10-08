@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <time.h>
 
 #define ENABLE_REWIND   1
 #define REWIND_BUF_SIZE 100
@@ -31,6 +32,17 @@ static void usage(const char* prog)
 {
     fprintf(stderr, "USAGE: %s <game.rom>\n", prog);
     exit(1);
+}
+
+static void msleep(uint32_t msec)
+{
+    if (msec == 0)
+        return;
+
+    struct timespec ts;
+    ts.tv_sec  = msec / 1000;
+    ts.tv_nsec = (msec % 1000) * 1000000;
+    nanosleep(&ts, NULL);
 }
 
 void init_rewind()
@@ -204,7 +216,9 @@ int main(int argc, char const* argv[])
                     apu_get_queued(sys->apu) < sys->apu->spec.freq) {
                     start       = end;
                     should_draw = 1;
-                }
+                } else if (ms_to_wait > end - start &&
+                           ms_to_wait - (end - start) > 5000)
+                    msleep(ms_to_wait / 1000 - 5);
             }
 
 #if ENABLE_REWIND
