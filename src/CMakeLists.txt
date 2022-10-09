@@ -55,6 +55,7 @@ add_executable ( borznes_multi
 
 add_executable ( borznes
     ${borzNES_src}
+    async.c
     tools/borznes.c )
 
 add_executable ( rom_info
@@ -73,6 +74,7 @@ target_link_libraries ( define_keys LINK_PUBLIC SDL2 SDL2_ttf )
 
 if ( WIN )
     target_link_libraries ( borznes_multi LINK_PUBLIC ws2_32 pthread )
+    target_link_libraries ( borznes LINK_PUBLIC ws2_32 pthread )
 endif ()
 
 add_custom_command (

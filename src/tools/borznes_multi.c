@@ -122,7 +122,12 @@ int main(int argc, char const* argv[])
         fd2   = open_p1_socket(BORZNES_DEFAULT_PORT);
 
         struct sockaddr_in client_addr;
-        uint32_t           client_addr_len = sizeof(client_addr);
+#ifdef __MINGW32__
+        int32_t client_addr_len;
+#else
+        uint32_t client_addr_len;
+#endif
+        client_addr_len = sizeof(client_addr);
         if ((fd1 = accept(fd2, (struct sockaddr*)&client_addr,
                           &client_addr_len)) < 0)
             panic("accept error");
@@ -250,6 +255,9 @@ int main(int argc, char const* argv[])
             if (end - start >= microseconds_to_wait &&
                 apu_get_queued(sys->apu) < sys->apu->spec.freq)
                 state = DRAW_FRAME;
+            else if (microseconds_to_wait > end - start &&
+                     microseconds_to_wait - (end - start) > 5000)
+                msleep(microseconds_to_wait / 1000 - 5);
         }
     }
 

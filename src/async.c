@@ -7,10 +7,12 @@
 
 #ifdef __MINGW32__
 #include <winsock2.h>
+#include <windows.h>
 #else
 #include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <time.h>
 #endif
 
 static void* thread_fun(void* _arg)
@@ -109,4 +111,27 @@ int64_t sync_recv(int fd, void* o_buf, int64_t len)
         n_read += r;
     }
     return n_read;
+}
+
+void msleep(uint32_t msec)
+{
+    if (msec == 0)
+        return;
+
+#ifdef __MINGW32__
+    HANDLE        timer;
+    LARGE_INTEGER ft;
+
+    uint32_t usec = msec * 1000;
+    ft.QuadPart   = -(10 * usec);
+    timer         = CreateWaitableTimer(NULL, TRUE, NULL);
+    SetWaitableTimer(timer, &ft, 0, NULL, NULL, 0);
+    WaitForSingleObject(timer, INFINITE);
+    CloseHandle(timer);
+#else
+    struct timespec ts;
+    ts.tv_sec  = msec / 1000;
+    ts.tv_nsec = (msec % 1000) * 1000000;
+    nanosleep(&ts, NULL);
+#endif
 }
