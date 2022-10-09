@@ -7,11 +7,11 @@
 #include "../apu.h"
 #include "../config.h"
 #include "../input_handler.h"
+#include "../async.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <time.h>
 
 #define ENABLE_REWIND   1
 #define REWIND_BUF_SIZE 100
@@ -32,17 +32,6 @@ static void usage(const char* prog)
 {
     fprintf(stderr, "USAGE: %s <game.rom>\n", prog);
     exit(1);
-}
-
-static void msleep(uint32_t msec)
-{
-    if (msec == 0)
-        return;
-
-    struct timespec ts;
-    ts.tv_sec  = msec / 1000;
-    ts.tv_nsec = (msec % 1000) * 1000000;
-    nanosleep(&ts, NULL);
 }
 
 void init_rewind()

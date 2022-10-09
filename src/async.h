@@ -20,5 +20,6 @@ void async_send(AsyncContext* ac, int fd, const void* i_buf, int64_t size);
 
 int64_t sync_send(int fd, const void* i_buf, int64_t size);
 int64_t sync_recv(int fd, void* o_buf, int64_t size);
+void    msleep(uint32_t msec);
 
 #endif
