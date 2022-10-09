@@ -19,3 +19,4 @@ key_load_state : 1000000ec
 key_save_state : 1000000e8
 key_fast_mode : 198
 key_slow_mode : 19c
+key_rewind : 1c8

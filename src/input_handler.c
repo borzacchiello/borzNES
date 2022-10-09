@@ -68,6 +68,7 @@ InputHandler* input_handler_build()
     LOAD_OR_FAIL(CFG_KEY_SAVE_STATE, &ih->kb.save_state);
     LOAD_OR_FAIL(CFG_KEY_FAST_MODE, &ih->kb.fast_mode);
     LOAD_OR_FAIL(CFG_KEY_SLOW_MODE, &ih->kb.slow_mode);
+    LOAD_OR_FAIL(CFG_KEY_REWIND, &ih->kb.rewind);
 
     return ih;
 }
