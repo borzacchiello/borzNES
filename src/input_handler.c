@@ -212,134 +212,93 @@ void input_handler_get_input(InputHandler* ih, SDL_Event e, ControllerState* p1,
                 p2->RIGHT = v;
         }
     } else if (e.type == SDL_JOYAXISMOTION) {
-        if (e.jaxis.value >= -joy_axis_cutoff &&
-            e.jaxis.value <= joy_axis_cutoff) {
-            if (p1) {
-                if (input_type(ih->kb.p1_A) == INPUT_JOYAXIS)
-                    p1->A = 0;
-                if (input_type(ih->kb.p1_B) == INPUT_JOYAXIS)
-                    p1->B = 0;
-                if (input_type(ih->kb.p1_START) == INPUT_JOYAXIS)
-                    p1->START = 0;
-                if (input_type(ih->kb.p1_SELECT) == INPUT_JOYAXIS)
-                    p1->SELECT = 0;
-                if (input_type(ih->kb.p1_UP) == INPUT_JOYAXIS)
-                    p1->UP = 0;
-                if (input_type(ih->kb.p1_DOWN) == INPUT_JOYAXIS)
-                    p1->DOWN = 0;
-                if (input_type(ih->kb.p1_LEFT) == INPUT_JOYAXIS)
-                    p1->LEFT = 0;
-                if (input_type(ih->kb.p1_RIGHT) == INPUT_JOYAXIS)
-                    p1->RIGHT = 0;
-            }
-            if (p2) {
-                if (input_type(ih->kb.p2_A) == INPUT_JOYAXIS)
-                    p2->A = 0;
-                if (input_type(ih->kb.p2_B) == INPUT_JOYAXIS)
-                    p2->B = 0;
-                if (input_type(ih->kb.p2_START) == INPUT_JOYAXIS)
-                    p2->START = 0;
-                if (input_type(ih->kb.p2_SELECT) == INPUT_JOYAXIS)
-                    p2->SELECT = 0;
-                if (input_type(ih->kb.p2_UP) == INPUT_JOYAXIS)
-                    p2->UP = 0;
-                if (input_type(ih->kb.p2_DOWN) == INPUT_JOYAXIS)
-                    p2->DOWN = 0;
-                if (input_type(ih->kb.p2_LEFT) == INPUT_JOYAXIS)
-                    p2->LEFT = 0;
-                if (input_type(ih->kb.p2_RIGHT) == INPUT_JOYAXIS)
-                    p2->RIGHT = 0;
-            }
-            return;
-        }
-        uint8_t  v     = 1;
         uint64_t joy_n = e.jaxis.which + 1;
         uint64_t joy_a = e.jaxis.axis & 1;
         uint64_t joy_v = e.jaxis.value < 0 ? 0 : 1;
+        uint8_t  v     = 1;
+        if (e.jaxis.value >= -joy_axis_cutoff &&
+            e.jaxis.value <= joy_axis_cutoff) {
+            joy_v = 0xff;
+            v     = 0;
+        }
+
+        // info("pressed: axis=%d, value=%d", joy_a, joy_v);
 
         if (p1) {
             if (input_type(ih->kb.p1_A) == INPUT_JOYAXIS &&
-                joy_n == joy_num(ih->kb.p1_A) &&
-                joy_a == joy_axis(ih->kb.p1_A) &&
-                joy_v == joy_value(ih->kb.p1_A))
-                p1->A = v;
+                joy_n == joy_num(ih->kb.p1_A) && joy_a == joy_axis(ih->kb.p1_A))
+                p1->A = v == 0 ? v : (joy_v == joy_value(ih->kb.p1_A) ? 1 : 0);
             if (input_type(ih->kb.p1_B) == INPUT_JOYAXIS &&
-                joy_n == joy_num(ih->kb.p1_B) &&
-                joy_a == joy_axis(ih->kb.p1_B) &&
-                joy_v == joy_value(ih->kb.p1_B))
-                p1->B = v;
+                joy_n == joy_num(ih->kb.p1_B) && joy_a == joy_axis(ih->kb.p1_B))
+                p1->B = v == 0 ? v : (joy_v == joy_value(ih->kb.p1_B) ? 1 : 0);
             if (input_type(ih->kb.p1_START) == INPUT_JOYAXIS &&
                 joy_n == joy_num(ih->kb.p1_START) &&
-                joy_a == joy_axis(ih->kb.p1_START) &&
-                joy_v == joy_value(ih->kb.p1_START))
-                p1->START = v;
+                joy_a == joy_axis(ih->kb.p1_START))
+                p1->START =
+                    v == 0 ? v : (joy_v == joy_value(ih->kb.p1_START) ? 1 : 0);
             if (input_type(ih->kb.p1_SELECT) == INPUT_JOYAXIS &&
                 joy_n == joy_num(ih->kb.p1_SELECT) &&
-                joy_a == joy_axis(ih->kb.p1_SELECT) &&
-                joy_v == joy_value(ih->kb.p1_SELECT))
-                p1->SELECT = v;
+                joy_a == joy_axis(ih->kb.p1_SELECT))
+                p1->SELECT =
+                    v == 0 ? v : (joy_v == joy_value(ih->kb.p1_SELECT) ? 1 : 0);
             if (input_type(ih->kb.p1_UP) == INPUT_JOYAXIS &&
                 joy_n == joy_num(ih->kb.p1_UP) &&
-                joy_a == joy_axis(ih->kb.p1_UP) &&
-                joy_v == joy_value(ih->kb.p1_UP))
-                p1->UP = v;
+                joy_a == joy_axis(ih->kb.p1_UP))
+                p1->UP =
+                    v == 0 ? v : (joy_v == joy_value(ih->kb.p1_UP) ? 1 : 0);
             if (input_type(ih->kb.p1_DOWN) == INPUT_JOYAXIS &&
                 joy_n == joy_num(ih->kb.p1_DOWN) &&
-                joy_a == joy_axis(ih->kb.p1_DOWN) &&
-                joy_v == joy_value(ih->kb.p1_DOWN))
-                p1->DOWN = v;
+                joy_a == joy_axis(ih->kb.p1_DOWN))
+                p1->DOWN =
+                    v == 0 ? v : (joy_v == joy_value(ih->kb.p1_DOWN) ? 1 : 0);
             if (input_type(ih->kb.p1_LEFT) == INPUT_JOYAXIS &&
                 joy_n == joy_num(ih->kb.p1_LEFT) &&
-                joy_a == joy_axis(ih->kb.p1_LEFT) &&
-                joy_v == joy_value(ih->kb.p1_LEFT))
-                p1->LEFT = v;
+                joy_a == joy_axis(ih->kb.p1_LEFT))
+                p1->LEFT =
+                    v == 0 ? v : (joy_v == joy_value(ih->kb.p1_LEFT) ? 1 : 0);
             if (input_type(ih->kb.p1_RIGHT) == INPUT_JOYAXIS &&
                 joy_n == joy_num(ih->kb.p1_RIGHT) &&
-                joy_a == joy_axis(ih->kb.p1_RIGHT) &&
-                joy_v == joy_value(ih->kb.p1_RIGHT))
-                p1->RIGHT = v;
+                joy_a == joy_axis(ih->kb.p1_RIGHT))
+                p1->RIGHT =
+                    v == 0 ? v : (joy_v == joy_value(ih->kb.p1_RIGHT) ? 1 : 0);
         }
         if (p2) {
             if (input_type(ih->kb.p2_A) == INPUT_JOYAXIS &&
-                joy_n == joy_num(ih->kb.p2_A) &&
-                joy_a == joy_axis(ih->kb.p2_A) &&
-                joy_v == joy_value(ih->kb.p2_A))
-                p2->A = v;
+                joy_n == joy_num(ih->kb.p2_A) && joy_a == joy_axis(ih->kb.p2_A))
+                p2->A = v == 0 ? v : (joy_v == joy_value(ih->kb.p2_A) ? 1 : 0);
             if (input_type(ih->kb.p2_B) == INPUT_JOYAXIS &&
-                joy_n == joy_num(ih->kb.p2_B) &&
-                joy_a == joy_axis(ih->kb.p2_B) &&
-                joy_v == joy_value(ih->kb.p2_B))
-                p2->B = v;
+                joy_n == joy_num(ih->kb.p2_B) && joy_a == joy_axis(ih->kb.p2_B))
+                p2->B = v == 0 ? v : (joy_v == joy_value(ih->kb.p2_B) ? 1 : 0);
             if (input_type(ih->kb.p2_START) == INPUT_JOYAXIS &&
                 joy_n == joy_num(ih->kb.p2_START) &&
-                joy_a == joy_axis(ih->kb.p2_START) &&
-                joy_v == joy_value(ih->kb.p2_START))
-                p2->START = v;
+                joy_a == joy_axis(ih->kb.p2_START))
+                p2->START =
+                    v == 0 ? v : (joy_v == joy_value(ih->kb.p2_START) ? 1 : 0);
             if (input_type(ih->kb.p2_SELECT) == INPUT_JOYAXIS &&
                 joy_n == joy_num(ih->kb.p2_SELECT) &&
-                joy_a == joy_axis(ih->kb.p2_SELECT) &&
-                joy_v == joy_value(ih->kb.p2_SELECT))
-                p2->SELECT = v;
+                joy_a == joy_axis(ih->kb.p2_SELECT))
+                p2->SELECT =
+                    v == 0 ? v : (joy_v == joy_value(ih->kb.p2_SELECT) ? 1 : 0);
             if (input_type(ih->kb.p2_UP) == INPUT_JOYAXIS &&
                 joy_n == joy_num(ih->kb.p2_UP) &&
-                joy_a == joy_axis(ih->kb.p2_UP) &&
-                joy_v == joy_value(ih->kb.p2_UP))
-                p2->UP = v;
+                joy_a == joy_axis(ih->kb.p2_UP))
+                p2->UP =
+                    v == 0 ? v : (joy_v == joy_value(ih->kb.p2_UP) ? 1 : 0);
             if (input_type(ih->kb.p2_DOWN) == INPUT_JOYAXIS &&
                 joy_n == joy_num(ih->kb.p2_DOWN) &&
-                joy_a == joy_axis(ih->kb.p2_DOWN) &&
-                joy_v == joy_value(ih->kb.p2_DOWN))
-                p2->DOWN = v;
+                joy_a == joy_axis(ih->kb.p2_DOWN))
+                p2->DOWN =
+                    v == 0 ? v : (joy_v == joy_value(ih->kb.p2_DOWN) ? 1 : 0);
             if (input_type(ih->kb.p2_LEFT) == INPUT_JOYAXIS &&
                 joy_n == joy_num(ih->kb.p2_LEFT) &&
-                joy_a == joy_axis(ih->kb.p2_LEFT) &&
-                joy_v == joy_value(ih->kb.p2_LEFT))
-                p2->LEFT = v;
+                joy_a == joy_axis(ih->kb.p2_LEFT))
+                p2->LEFT =
+                    v == 0 ? v : (joy_v == joy_value(ih->kb.p2_LEFT) ? 1 : 0);
             if (input_type(ih->kb.p2_RIGHT) == INPUT_JOYAXIS &&
                 joy_n == joy_num(ih->kb.p2_RIGHT) &&
-                joy_a == joy_axis(ih->kb.p2_RIGHT) &&
-                joy_v == joy_value(ih->kb.p2_RIGHT))
-                p2->RIGHT = v;
+                joy_a == joy_axis(ih->kb.p2_RIGHT))
+                p2->RIGHT =
+                    v == 0 ? v : (joy_v == joy_value(ih->kb.p2_RIGHT) ? 1 : 0);
         }
     }
 }
