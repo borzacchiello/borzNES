@@ -13,13 +13,12 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define ENABLE_REWIND   1
 #define REWIND_BUF_SIZE 100
 
 #ifdef __MINGW32__
-#define REWIND_DIR "borznes"
+#define REWIND_DIR "borznes_rewind_states"
 #else
-#define REWIND_DIR "/tmp/borznes"
+#define REWIND_DIR "/tmp/borznes_rewind_states"
 #endif
 
 typedef enum { NORMAL_MODE, DEBUG_MODE, REWIND_MODE } EmulationMode;
@@ -102,6 +101,7 @@ int main(int argc, char const* argv[])
         should_draw            = 1;
     uint64_t        ms_to_wait = 0;
     ControllerState p1, p2;
+    MiscKeys        mk;
     p1.state = 0;
     p2.state = 0;
 
@@ -110,101 +110,90 @@ int main(int argc, char const* argv[])
         if (window_poll_event(&e)) {
             if (e.type == SDL_QUIT) {
                 break;
-            } else if (e.type == SDL_KEYDOWN) {
-                switch (e.key.keysym.sym) {
-
-#ifdef ENABLE_DEBUG_GW
-
-                    // DEBUG MODE KEYS
-                    case SDLK_i: {
-                        // step one CPU instruction
-                        if (mode == DEBUG_MODE) {
-                            system_step(sys);
-                            gamewindow_draw(gw);
-                        }
-                        break;
-                    }
-                    case SDLK_o: {
-                        // step one PPU frame
-                        if (mode == DEBUG_MODE) {
-                            uint32_t old_frame = sys->ppu->frame;
-                            while (sys->ppu->frame == old_frame)
-                                system_step(sys);
-                            gamewindow_draw(gw);
-                        }
-                        break;
-                    }
-                    case SDLK_d: {
-                        // toggle debug mode
-                        if (mode == NORMAL_MODE)
-                            mode = DEBUG_MODE;
-                        else if (mode == DEBUG_MODE)
-                            mode = NORMAL_MODE;
-                        break;
-                    }
-
-#endif
-
-                    // UTILS
-                    case SDLK_q:
-                        should_quit = 1;
-                        break;
-                    case SDLK_m:
-                        audio_on = !audio_on;
-                        if (audio_on) {
-                            apu_unpause(sys->apu);
-                            gamewindow_show_popup(gw, "audio on");
-                        } else {
-                            apu_pause(sys->apu);
-                            gamewindow_show_popup(gw, "audio off");
-                        }
-                        break;
-                    case SDLK_f:
-                        slow_freq = 0;
-                        fast_freq = !fast_freq;
-                        if (fast_freq) {
-                            sys->cpu_freq = CPU_2X_FREQ;
-                            gamewindow_show_popup(gw, "fast mode");
-                        } else {
-                            sys->cpu_freq = CPU_1X_FREQ;
-                            gamewindow_show_popup(gw, "normal mode");
-                        }
-                        break;
-                    case SDLK_g:
-                        fast_freq = 0;
-                        slow_freq = !slow_freq;
-                        if (slow_freq) {
-                            sys->cpu_freq = CPU_0_5X_FREQ;
-                            gamewindow_show_popup(gw, "slow mode");
-                        } else {
-                            sys->cpu_freq = CPU_1X_FREQ;
-                            gamewindow_show_popup(gw, "normal mode");
-                        }
-                        break;
-                    case SDLK_F1:
-                        system_save_state(sys, sys->state_save_path);
-                        gamewindow_show_popup(gw, "state saved");
-                        break;
-                    case SDLK_F2:
-                        system_load_state(sys, sys->state_save_path);
-                        gamewindow_show_popup(gw, "state loaded");
-                        break;
-#if ENABLE_REWIND
-                    case SDLK_r:
-                        mode = REWIND_MODE;
-                        break;
-#endif
-                }
-            } else if (e.type == SDL_KEYUP) {
-#if ENABLE_REWIND
-                if (e.key.keysym.sym == SDLK_r)
-                    mode = NORMAL_MODE;
-#endif
             }
 
-            input_handler_get_input(ih, e, &p1, &p2);
+            if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_q) {
+                should_quit = 1;
+                continue;
+            }
+
+#ifdef ENABLE_DEBUG_GW
+            if (e.type == SDL_KEYDOWN) {
+                if (e.key.keysym.sym == SDLK_i) {
+                    if (mode == DEBUG_MODE) {
+                        system_step(sys);
+                        gamewindow_draw(gw);
+                    }
+                } else if (e.key.keysym.sym == SDLK_o) {
+                    if (mode == DEBUG_MODE) {
+                        uint32_t old_frame = sys->ppu->frame;
+                        while (sys->ppu->frame == old_frame)
+                            system_step(sys);
+                        gamewindow_draw(gw);
+                    }
+                } else if (e.key.keysym.sym == SDLK_d) {
+                    if (mode == NORMAL_MODE)
+                        mode = DEBUG_MODE;
+                    else if (mode == DEBUG_MODE)
+                        mode = NORMAL_MODE;
+                }
+            }
+#endif
+
+            input_handler_get_input(ih, e, &p1, &p2, &mk);
             system_update_controller(sys, P1, p1);
             system_update_controller(sys, P2, p2);
+
+            if (mk.mute) {
+                mk.mute  = 0;
+                audio_on = !audio_on;
+                if (audio_on) {
+                    apu_unpause(sys->apu);
+                    gamewindow_show_popup(gw, "audio on");
+                } else {
+                    apu_pause(sys->apu);
+                    gamewindow_show_popup(gw, "audio off");
+                }
+            }
+            if (mk.fast_mode) {
+                mk.fast_mode = 0;
+                slow_freq    = 0;
+                fast_freq    = !fast_freq;
+                if (fast_freq) {
+                    sys->cpu_freq = CPU_2X_FREQ;
+                    gamewindow_show_popup(gw, "fast mode");
+                } else {
+                    sys->cpu_freq = CPU_1X_FREQ;
+                    gamewindow_show_popup(gw, "normal mode");
+                }
+            }
+            if (mk.slow_mode) {
+                mk.slow_mode = 0;
+                fast_freq    = 0;
+                slow_freq    = !slow_freq;
+                if (slow_freq) {
+                    sys->cpu_freq = CPU_0_5X_FREQ;
+                    gamewindow_show_popup(gw, "slow mode");
+                } else {
+                    sys->cpu_freq = CPU_1X_FREQ;
+                    gamewindow_show_popup(gw, "normal mode");
+                }
+            }
+            if (mk.save_state) {
+                mk.save_state = 0;
+                system_save_state(sys, sys->state_save_path);
+                gamewindow_show_popup(gw, "state saved");
+            }
+            if (mk.load_state) {
+                mk.load_state = 0;
+                system_load_state(sys, sys->state_save_path);
+                gamewindow_show_popup(gw, "state loaded");
+            }
+            if (mk.rewind) {
+                mode = REWIND_MODE;
+            } else {
+                mode = NORMAL_MODE;
+            }
         }
 
         if (mode == NORMAL_MODE) {
@@ -227,15 +216,13 @@ int main(int argc, char const* argv[])
                     msleep(ms_to_wait / 1000 - 5);
             }
 
-#if ENABLE_REWIND
             end = get_timestamp_microseconds();
             if (end - last_rewind_timestamp > 500000) {
                 last_rewind_timestamp = end;
                 save_rewind_state(sys);
             }
-#endif
         }
-#if ENABLE_REWIND
+
         if (mode == REWIND_MODE) {
             end = get_timestamp_microseconds();
             if (end - last_rewind_timestamp > 500000) {
@@ -247,7 +234,6 @@ int main(int argc, char const* argv[])
                 }
             }
         }
-#endif
     }
 
     gamewindow_destroy(gw);

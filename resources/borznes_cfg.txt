@@ -9,8 +9,13 @@ p1_RIGHT : 10000013c
 p1_LEFT : 100000140
 p1_DOWN : 100000144
 p1_UP : 100000148
-p1_SELECT : 20
+p1_SELECT : 100000394
 p1_START : 34
 p1_B : 1e0
 p1_A : 1e8
 p2_RIGHT : 100000006
+key_mute : 1b4
+key_load_state : 1000000ec
+key_save_state : 1000000e8
+key_fast_mode : 198
+key_slow_mode : 19c
