@@ -191,9 +191,9 @@ int main(int argc, char const* argv[])
     long            start_latency_calc;
     int             should_quit = 0, sync_count = 0, audio_on = 1;
     ControllerState p1, p2, freezed_p1;
-    MiscKeys        keys;
-    p1.state = 0;
-    p2.state = 0;
+    MiscKeys        keys = {0};
+    p1.state             = 0;
+    p2.state             = 0;
 
     SDL_Event e;
     while (!should_quit) {
