@@ -7,6 +7,21 @@
 #define INPUT_JOYBUTTON 1
 #define INPUT_JOYAXIS   2
 
+#define HANDLE_KEY(binding, output_var)                                        \
+    if (input_type(binding) == INPUT_KEY &&                                    \
+        e.key.keysym.sym == key_value(binding))                                \
+        output_var = v;
+
+#define HANDLE_JOYBTN(binding, output_var)                                     \
+    if (input_type(binding) == INPUT_JOYBUTTON && joy_n == joy_num(binding) && \
+        joy_btn == joy_button(binding))                                        \
+        output_var = v;
+
+#define HANDLE_JOYAXIS(binding, output_var)                                    \
+    if (input_type(binding) == INPUT_JOYAXIS && joy_n == joy_num(binding) &&   \
+        joy_a == joy_axis(binding))                                            \
+        output_var = v == 0 ? v : (joy_v == joy_value(binding) ? 1 : 0);
+
 #define LOAD_OR_FAIL(key, oval)                                                \
     if (!config_get_value(key, oval))                                          \
         panic("%s not found in config", key);
@@ -48,6 +63,11 @@ InputHandler* input_handler_build()
     LOAD_OR_FAIL(CFG_P2_DOWN, &ih->kb.p2_DOWN);
     LOAD_OR_FAIL(CFG_P2_LEFT, &ih->kb.p2_LEFT);
     LOAD_OR_FAIL(CFG_P2_RIGHT, &ih->kb.p2_RIGHT);
+    LOAD_OR_FAIL(CFG_KEY_MUTE, &ih->kb.mute);
+    LOAD_OR_FAIL(CFG_KEY_LOAD_STATE, &ih->kb.load_state);
+    LOAD_OR_FAIL(CFG_KEY_SAVE_STATE, &ih->kb.save_state);
+    LOAD_OR_FAIL(CFG_KEY_FAST_MODE, &ih->kb.fast_mode);
+    LOAD_OR_FAIL(CFG_KEY_SLOW_MODE, &ih->kb.slow_mode);
 
     return ih;
 }
@@ -81,62 +101,38 @@ static inline int joy_axis(uint64_t k) { return (k >> 3) & 1; }
 static inline int joy_value(uint64_t k) { return (k >> 2) & 1; }
 
 void input_handler_get_input(InputHandler* ih, SDL_Event e, ControllerState* p1,
-                             ControllerState* p2)
+                             ControllerState* p2, MiscKeys* k)
 {
     if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) {
         uint8_t v = e.type == SDL_KEYDOWN ? 1 : 0;
 
         if (p1) {
-            if (input_type(ih->kb.p1_A) == INPUT_KEY &&
-                e.key.keysym.sym == key_value(ih->kb.p1_A))
-                p1->A = v;
-            if (input_type(ih->kb.p1_B) == INPUT_KEY &&
-                e.key.keysym.sym == key_value(ih->kb.p1_B))
-                p1->B = v;
-            if (input_type(ih->kb.p1_START) == INPUT_KEY &&
-                e.key.keysym.sym == key_value(ih->kb.p1_START))
-                p1->START = v;
-            if (input_type(ih->kb.p1_SELECT) == INPUT_KEY &&
-                e.key.keysym.sym == key_value(ih->kb.p1_SELECT))
-                p1->SELECT = v;
-            if (input_type(ih->kb.p1_UP) == INPUT_KEY &&
-                e.key.keysym.sym == key_value(ih->kb.p1_UP))
-                p1->UP = v;
-            if (input_type(ih->kb.p1_DOWN) == INPUT_KEY &&
-                e.key.keysym.sym == key_value(ih->kb.p1_DOWN))
-                p1->DOWN = v;
-            if (input_type(ih->kb.p1_LEFT) == INPUT_KEY &&
-                e.key.keysym.sym == key_value(ih->kb.p1_LEFT))
-                p1->LEFT = v;
-            if (input_type(ih->kb.p1_RIGHT) == INPUT_KEY &&
-                e.key.keysym.sym == key_value(ih->kb.p1_RIGHT))
-                p1->RIGHT = v;
+            HANDLE_KEY(ih->kb.p1_A, p1->A)
+            HANDLE_KEY(ih->kb.p1_B, p1->B)
+            HANDLE_KEY(ih->kb.p1_START, p1->START)
+            HANDLE_KEY(ih->kb.p1_SELECT, p1->SELECT)
+            HANDLE_KEY(ih->kb.p1_UP, p1->UP)
+            HANDLE_KEY(ih->kb.p1_DOWN, p1->DOWN)
+            HANDLE_KEY(ih->kb.p1_LEFT, p1->LEFT)
+            HANDLE_KEY(ih->kb.p1_RIGHT, p1->RIGHT)
         }
         if (p2) {
-            if (input_type(ih->kb.p2_A) == INPUT_KEY &&
-                e.key.keysym.sym == key_value(ih->kb.p2_A))
-                p2->A = v;
-            if (input_type(ih->kb.p2_B) == INPUT_KEY &&
-                e.key.keysym.sym == key_value(ih->kb.p2_B))
-                p2->B = v;
-            if (input_type(ih->kb.p2_START) == INPUT_KEY &&
-                e.key.keysym.sym == key_value(ih->kb.p2_START))
-                p2->START = v;
-            if (input_type(ih->kb.p2_SELECT) == INPUT_KEY &&
-                e.key.keysym.sym == key_value(ih->kb.p2_SELECT))
-                p2->SELECT = v;
-            if (input_type(ih->kb.p2_UP) == INPUT_KEY &&
-                e.key.keysym.sym == key_value(ih->kb.p2_UP))
-                p2->UP = v;
-            if (input_type(ih->kb.p2_DOWN) == INPUT_KEY &&
-                e.key.keysym.sym == key_value(ih->kb.p2_DOWN))
-                p2->DOWN = v;
-            if (input_type(ih->kb.p2_LEFT) == INPUT_KEY &&
-                e.key.keysym.sym == key_value(ih->kb.p2_LEFT))
-                p2->LEFT = v;
-            if (input_type(ih->kb.p2_RIGHT) == INPUT_KEY &&
-                e.key.keysym.sym == key_value(ih->kb.p2_RIGHT))
-                p2->RIGHT = v;
+            HANDLE_KEY(ih->kb.p2_A, p2->A)
+            HANDLE_KEY(ih->kb.p2_B, p2->B)
+            HANDLE_KEY(ih->kb.p2_START, p2->START)
+            HANDLE_KEY(ih->kb.p2_SELECT, p2->SELECT)
+            HANDLE_KEY(ih->kb.p2_UP, p2->UP)
+            HANDLE_KEY(ih->kb.p2_DOWN, p2->DOWN)
+            HANDLE_KEY(ih->kb.p2_LEFT, p2->LEFT)
+            HANDLE_KEY(ih->kb.p2_RIGHT, p2->RIGHT)
+        }
+        if (k) {
+            HANDLE_KEY(ih->kb.mute, k->mute)
+            HANDLE_KEY(ih->kb.load_state, k->load_state)
+            HANDLE_KEY(ih->kb.save_state, k->save_state)
+            HANDLE_KEY(ih->kb.fast_mode, k->fast_mode)
+            HANDLE_KEY(ih->kb.slow_mode, k->slow_mode)
+            HANDLE_KEY(ih->kb.rewind, k->rewind)
         }
     } else if (e.type == SDL_JOYBUTTONDOWN || e.type == SDL_JOYBUTTONUP) {
         uint8_t v       = e.type == SDL_JOYBUTTONDOWN ? 1 : 0;
@@ -144,72 +140,32 @@ void input_handler_get_input(InputHandler* ih, SDL_Event e, ControllerState* p1,
         int     joy_btn = e.jbutton.button;
 
         if (p1) {
-            if (input_type(ih->kb.p1_A) == INPUT_JOYBUTTON &&
-                joy_n == joy_num(ih->kb.p1_A) &&
-                joy_btn == joy_button(ih->kb.p1_A))
-                p1->A = v;
-            if (input_type(ih->kb.p1_B) == INPUT_JOYBUTTON &&
-                joy_n == joy_num(ih->kb.p1_B) &&
-                joy_btn == joy_button(ih->kb.p1_B))
-                p1->B = v;
-            if (input_type(ih->kb.p1_START) == INPUT_JOYBUTTON &&
-                joy_n == joy_num(ih->kb.p1_START) &&
-                joy_btn == joy_button(ih->kb.p1_START))
-                p1->START = v;
-            if (input_type(ih->kb.p1_SELECT) == INPUT_JOYBUTTON &&
-                joy_n == joy_num(ih->kb.p1_SELECT) &&
-                joy_btn == joy_button(ih->kb.p1_SELECT))
-                p1->SELECT = v;
-            if (input_type(ih->kb.p1_UP) == INPUT_JOYBUTTON &&
-                joy_n == joy_num(ih->kb.p1_UP) &&
-                joy_btn == joy_button(ih->kb.p1_UP))
-                p1->UP = v;
-            if (input_type(ih->kb.p1_DOWN) == INPUT_JOYBUTTON &&
-                joy_n == joy_num(ih->kb.p1_DOWN) &&
-                joy_btn == joy_button(ih->kb.p1_DOWN))
-                p1->DOWN = v;
-            if (input_type(ih->kb.p1_LEFT) == INPUT_JOYBUTTON &&
-                joy_n == joy_num(ih->kb.p1_LEFT) &&
-                joy_btn == joy_button(ih->kb.p1_LEFT))
-                p1->LEFT = v;
-            if (input_type(ih->kb.p1_RIGHT) == INPUT_JOYBUTTON &&
-                joy_n == joy_num(ih->kb.p1_RIGHT) &&
-                joy_btn == joy_button(ih->kb.p1_RIGHT))
-                p1->RIGHT = v;
+            HANDLE_JOYBTN(ih->kb.p1_A, p1->A)
+            HANDLE_JOYBTN(ih->kb.p1_B, p1->B)
+            HANDLE_JOYBTN(ih->kb.p1_START, p1->START)
+            HANDLE_JOYBTN(ih->kb.p1_SELECT, p1->SELECT)
+            HANDLE_JOYBTN(ih->kb.p1_UP, p1->UP)
+            HANDLE_JOYBTN(ih->kb.p1_DOWN, p1->DOWN)
+            HANDLE_JOYBTN(ih->kb.p1_LEFT, p1->LEFT)
+            HANDLE_JOYBTN(ih->kb.p1_RIGHT, p1->RIGHT)
         }
         if (p2) {
-            if (input_type(ih->kb.p2_A) == INPUT_JOYBUTTON &&
-                joy_n == joy_num(ih->kb.p2_A) &&
-                joy_btn == joy_button(ih->kb.p2_A))
-                p2->A = v;
-            if (input_type(ih->kb.p2_B) == INPUT_JOYBUTTON &&
-                joy_n == joy_num(ih->kb.p2_B) &&
-                joy_btn == joy_button(ih->kb.p2_B))
-                p2->B = v;
-            if (input_type(ih->kb.p2_START) == INPUT_JOYBUTTON &&
-                joy_n == joy_num(ih->kb.p2_START) &&
-                joy_btn == joy_button(ih->kb.p2_START))
-                p2->START = v;
-            if (input_type(ih->kb.p2_SELECT) == INPUT_JOYBUTTON &&
-                joy_n == joy_num(ih->kb.p2_SELECT) &&
-                joy_btn == joy_button(ih->kb.p2_SELECT))
-                p2->SELECT = v;
-            if (input_type(ih->kb.p2_UP) == INPUT_JOYBUTTON &&
-                joy_n == joy_num(ih->kb.p2_UP) &&
-                joy_btn == joy_button(ih->kb.p2_UP))
-                p2->UP = v;
-            if (input_type(ih->kb.p2_DOWN) == INPUT_JOYBUTTON &&
-                joy_n == joy_num(ih->kb.p2_DOWN) &&
-                joy_btn == joy_button(ih->kb.p2_DOWN))
-                p2->DOWN = v;
-            if (input_type(ih->kb.p2_LEFT) == INPUT_JOYBUTTON &&
-                joy_n == joy_num(ih->kb.p2_LEFT) &&
-                joy_btn == joy_button(ih->kb.p2_LEFT))
-                p2->LEFT = v;
-            if (input_type(ih->kb.p2_RIGHT) == INPUT_JOYBUTTON &&
-                joy_n == joy_num(ih->kb.p2_RIGHT) &&
-                joy_btn == joy_button(ih->kb.p2_RIGHT))
-                p2->RIGHT = v;
+            HANDLE_JOYBTN(ih->kb.p2_A, p2->A)
+            HANDLE_JOYBTN(ih->kb.p2_B, p2->B)
+            HANDLE_JOYBTN(ih->kb.p2_START, p2->START)
+            HANDLE_JOYBTN(ih->kb.p2_SELECT, p2->SELECT)
+            HANDLE_JOYBTN(ih->kb.p2_UP, p2->UP)
+            HANDLE_JOYBTN(ih->kb.p2_DOWN, p2->DOWN)
+            HANDLE_JOYBTN(ih->kb.p2_LEFT, p2->LEFT)
+            HANDLE_JOYBTN(ih->kb.p2_RIGHT, p2->RIGHT)
+        }
+        if (k) {
+            HANDLE_JOYBTN(ih->kb.mute, k->mute)
+            HANDLE_JOYBTN(ih->kb.load_state, k->load_state)
+            HANDLE_JOYBTN(ih->kb.save_state, k->save_state)
+            HANDLE_JOYBTN(ih->kb.fast_mode, k->fast_mode)
+            HANDLE_JOYBTN(ih->kb.slow_mode, k->slow_mode)
+            HANDLE_JOYBTN(ih->kb.rewind, k->rewind)
         }
     } else if (e.type == SDL_JOYAXISMOTION) {
         uint64_t joy_n = e.jaxis.which + 1;
@@ -222,83 +178,33 @@ void input_handler_get_input(InputHandler* ih, SDL_Event e, ControllerState* p1,
             v     = 0;
         }
 
-        // info("pressed: axis=%d, value=%d", joy_a, joy_v);
-
         if (p1) {
-            if (input_type(ih->kb.p1_A) == INPUT_JOYAXIS &&
-                joy_n == joy_num(ih->kb.p1_A) && joy_a == joy_axis(ih->kb.p1_A))
-                p1->A = v == 0 ? v : (joy_v == joy_value(ih->kb.p1_A) ? 1 : 0);
-            if (input_type(ih->kb.p1_B) == INPUT_JOYAXIS &&
-                joy_n == joy_num(ih->kb.p1_B) && joy_a == joy_axis(ih->kb.p1_B))
-                p1->B = v == 0 ? v : (joy_v == joy_value(ih->kb.p1_B) ? 1 : 0);
-            if (input_type(ih->kb.p1_START) == INPUT_JOYAXIS &&
-                joy_n == joy_num(ih->kb.p1_START) &&
-                joy_a == joy_axis(ih->kb.p1_START))
-                p1->START =
-                    v == 0 ? v : (joy_v == joy_value(ih->kb.p1_START) ? 1 : 0);
-            if (input_type(ih->kb.p1_SELECT) == INPUT_JOYAXIS &&
-                joy_n == joy_num(ih->kb.p1_SELECT) &&
-                joy_a == joy_axis(ih->kb.p1_SELECT))
-                p1->SELECT =
-                    v == 0 ? v : (joy_v == joy_value(ih->kb.p1_SELECT) ? 1 : 0);
-            if (input_type(ih->kb.p1_UP) == INPUT_JOYAXIS &&
-                joy_n == joy_num(ih->kb.p1_UP) &&
-                joy_a == joy_axis(ih->kb.p1_UP))
-                p1->UP =
-                    v == 0 ? v : (joy_v == joy_value(ih->kb.p1_UP) ? 1 : 0);
-            if (input_type(ih->kb.p1_DOWN) == INPUT_JOYAXIS &&
-                joy_n == joy_num(ih->kb.p1_DOWN) &&
-                joy_a == joy_axis(ih->kb.p1_DOWN))
-                p1->DOWN =
-                    v == 0 ? v : (joy_v == joy_value(ih->kb.p1_DOWN) ? 1 : 0);
-            if (input_type(ih->kb.p1_LEFT) == INPUT_JOYAXIS &&
-                joy_n == joy_num(ih->kb.p1_LEFT) &&
-                joy_a == joy_axis(ih->kb.p1_LEFT))
-                p1->LEFT =
-                    v == 0 ? v : (joy_v == joy_value(ih->kb.p1_LEFT) ? 1 : 0);
-            if (input_type(ih->kb.p1_RIGHT) == INPUT_JOYAXIS &&
-                joy_n == joy_num(ih->kb.p1_RIGHT) &&
-                joy_a == joy_axis(ih->kb.p1_RIGHT))
-                p1->RIGHT =
-                    v == 0 ? v : (joy_v == joy_value(ih->kb.p1_RIGHT) ? 1 : 0);
+            HANDLE_JOYAXIS(ih->kb.p1_A, p1->A)
+            HANDLE_JOYAXIS(ih->kb.p1_B, p1->B)
+            HANDLE_JOYAXIS(ih->kb.p1_START, p1->START)
+            HANDLE_JOYAXIS(ih->kb.p1_SELECT, p1->SELECT)
+            HANDLE_JOYAXIS(ih->kb.p1_UP, p1->UP)
+            HANDLE_JOYAXIS(ih->kb.p1_DOWN, p1->DOWN)
+            HANDLE_JOYAXIS(ih->kb.p1_LEFT, p1->LEFT)
+            HANDLE_JOYAXIS(ih->kb.p1_RIGHT, p1->RIGHT)
         }
         if (p2) {
-            if (input_type(ih->kb.p2_A) == INPUT_JOYAXIS &&
-                joy_n == joy_num(ih->kb.p2_A) && joy_a == joy_axis(ih->kb.p2_A))
-                p2->A = v == 0 ? v : (joy_v == joy_value(ih->kb.p2_A) ? 1 : 0);
-            if (input_type(ih->kb.p2_B) == INPUT_JOYAXIS &&
-                joy_n == joy_num(ih->kb.p2_B) && joy_a == joy_axis(ih->kb.p2_B))
-                p2->B = v == 0 ? v : (joy_v == joy_value(ih->kb.p2_B) ? 1 : 0);
-            if (input_type(ih->kb.p2_START) == INPUT_JOYAXIS &&
-                joy_n == joy_num(ih->kb.p2_START) &&
-                joy_a == joy_axis(ih->kb.p2_START))
-                p2->START =
-                    v == 0 ? v : (joy_v == joy_value(ih->kb.p2_START) ? 1 : 0);
-            if (input_type(ih->kb.p2_SELECT) == INPUT_JOYAXIS &&
-                joy_n == joy_num(ih->kb.p2_SELECT) &&
-                joy_a == joy_axis(ih->kb.p2_SELECT))
-                p2->SELECT =
-                    v == 0 ? v : (joy_v == joy_value(ih->kb.p2_SELECT) ? 1 : 0);
-            if (input_type(ih->kb.p2_UP) == INPUT_JOYAXIS &&
-                joy_n == joy_num(ih->kb.p2_UP) &&
-                joy_a == joy_axis(ih->kb.p2_UP))
-                p2->UP =
-                    v == 0 ? v : (joy_v == joy_value(ih->kb.p2_UP) ? 1 : 0);
-            if (input_type(ih->kb.p2_DOWN) == INPUT_JOYAXIS &&
-                joy_n == joy_num(ih->kb.p2_DOWN) &&
-                joy_a == joy_axis(ih->kb.p2_DOWN))
-                p2->DOWN =
-                    v == 0 ? v : (joy_v == joy_value(ih->kb.p2_DOWN) ? 1 : 0);
-            if (input_type(ih->kb.p2_LEFT) == INPUT_JOYAXIS &&
-                joy_n == joy_num(ih->kb.p2_LEFT) &&
-                joy_a == joy_axis(ih->kb.p2_LEFT))
-                p2->LEFT =
-                    v == 0 ? v : (joy_v == joy_value(ih->kb.p2_LEFT) ? 1 : 0);
-            if (input_type(ih->kb.p2_RIGHT) == INPUT_JOYAXIS &&
-                joy_n == joy_num(ih->kb.p2_RIGHT) &&
-                joy_a == joy_axis(ih->kb.p2_RIGHT))
-                p2->RIGHT =
-                    v == 0 ? v : (joy_v == joy_value(ih->kb.p2_RIGHT) ? 1 : 0);
+            HANDLE_JOYAXIS(ih->kb.p2_A, p2->A)
+            HANDLE_JOYAXIS(ih->kb.p2_B, p2->B)
+            HANDLE_JOYAXIS(ih->kb.p2_START, p2->START)
+            HANDLE_JOYAXIS(ih->kb.p2_SELECT, p2->SELECT)
+            HANDLE_JOYAXIS(ih->kb.p2_UP, p2->UP)
+            HANDLE_JOYAXIS(ih->kb.p2_DOWN, p2->DOWN)
+            HANDLE_JOYAXIS(ih->kb.p2_LEFT, p2->LEFT)
+            HANDLE_JOYAXIS(ih->kb.p2_RIGHT, p2->RIGHT)
+        }
+        if (k) {
+            HANDLE_JOYAXIS(ih->kb.mute, k->mute)
+            HANDLE_JOYAXIS(ih->kb.load_state, k->load_state)
+            HANDLE_JOYAXIS(ih->kb.save_state, k->save_state)
+            HANDLE_JOYAXIS(ih->kb.fast_mode, k->fast_mode)
+            HANDLE_JOYAXIS(ih->kb.slow_mode, k->slow_mode)
+            HANDLE_JOYAXIS(ih->kb.rewind, k->rewind)
         }
     }
 }

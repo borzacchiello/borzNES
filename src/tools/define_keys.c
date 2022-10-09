@@ -27,14 +27,17 @@ int main(int argc, char const* argv[])
     }
 
     char* keys[] = {
-        CFG_P1_A,     "P1 A",        CFG_P1_B,      "P1 B",      CFG_P1_START,
-        "P1 START",   CFG_P1_SELECT, "P1 SELECT",   CFG_P1_UP,   "P1 UP",
-        CFG_P1_DOWN,  "P1 DOWN",     CFG_P1_LEFT,   "P1 LEFT",   CFG_P1_RIGHT,
-        "P1 RIGHT",   CFG_P2_A,      "P2 A",        CFG_P2_B,    "P2 B",
-        CFG_P2_START, "P2 START",    CFG_P2_SELECT, "P2 SELECT", CFG_P2_UP,
-        "P2 UP",      CFG_P2_DOWN,   "P2 DOWN",     CFG_P2_LEFT, "P2 LEFT",
-        CFG_P2_RIGHT, "P2 RIGHT",
-    };
+        CFG_P1_A,           "P1 A",       CFG_P1_B,           "P1 B",
+        CFG_P1_START,       "P1 START",   CFG_P1_SELECT,      "P1 SELECT",
+        CFG_P1_UP,          "P1 UP",      CFG_P1_DOWN,        "P1 DOWN",
+        CFG_P1_LEFT,        "P1 LEFT",    CFG_P1_RIGHT,       "P1 RIGHT",
+        CFG_P2_A,           "P2 A",       CFG_P2_B,           "P2 B",
+        CFG_P2_START,       "P2 START",   CFG_P2_SELECT,      "P2 SELECT",
+        CFG_P2_UP,          "P2 UP",      CFG_P2_DOWN,        "P2 DOWN",
+        CFG_P2_LEFT,        "P2 LEFT",    CFG_P2_RIGHT,       "P2 RIGHT",
+        CFG_KEY_MUTE,       "Mute",       CFG_KEY_LOAD_STATE, "Load State",
+        CFG_KEY_SAVE_STATE, "Save State", CFG_KEY_FAST_MODE,  "Fast Mode",
+        CFG_KEY_SLOW_MODE,  "Slow Mode"};
 
     int i = 0;
     window_draw_text(win, 1, 1, 0, color_white, "choose key for (q to quit):");

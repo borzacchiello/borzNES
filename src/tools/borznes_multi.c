@@ -191,6 +191,7 @@ int main(int argc, char const* argv[])
     long            start_latency_calc;
     int             should_quit = 0, sync_count = 0, audio_on = 1;
     ControllerState p1, p2, freezed_p1;
+    MiscKeys        keys;
     p1.state = 0;
     p2.state = 0;
 
@@ -202,22 +203,18 @@ int main(int argc, char const* argv[])
         if (window_poll_event(&e)) {
             if (e.type == SDL_QUIT) {
                 break;
-            } else if (e.type == SDL_KEYDOWN) {
-                switch (e.key.keysym.sym) {
-                    // UTILS
-                    case SDLK_q:
-                        should_quit = 1;
-                        break;
-                    case SDLK_m:
-                        audio_on = !audio_on;
-                        if (audio_on)
-                            apu_unpause(sys->apu);
-                        else
-                            apu_pause(sys->apu);
-                        break;
-                }
+            } else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_q) {
+                should_quit = 1;
+                continue;
             }
-            input_handler_get_input(ih, e, &p1, NULL);
+            input_handler_get_input(ih, e, &p1, NULL, &keys);
+            if (keys.mute) {
+                audio_on = !audio_on;
+                if (audio_on)
+                    apu_unpause(sys->apu);
+                else
+                    apu_pause(sys->apu);
+            }
         }
 
         if (state == DRAW_FRAME) {
