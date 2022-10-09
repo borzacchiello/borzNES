@@ -15,8 +15,14 @@ static volatile int g_is_window_created = 0;
 
 #ifdef __MINGW32__
 extern char* strdup(const char*);
-extern char *strtok(char *str, const char *delim);
+extern char* strtok(char* str, const char* delim);
 #endif
+
+static inline SDL_Color to_sdl_color(Color c)
+{
+    SDL_Color sdl_c = {c.r, c.g, c.b, c.a};
+    return sdl_c;
+}
 
 Window* window_build(uint32_t width, uint32_t height)
 {
@@ -110,7 +116,7 @@ void window_destroy(Window* win)
 }
 
 static void window_draw_text_internal(Window* win, uint32_t row, uint32_t col,
-                                      Color color, char* text)
+                                      int shaded, Color color, char* text)
 {
     uint32_t tlen = (uint32_t)strlen(text);
     if (col > win->text_cols || tlen + col > win->text_cols)
@@ -119,9 +125,13 @@ static void window_draw_text_internal(Window* win, uint32_t row, uint32_t col,
     if (row >= win->text_rows)
         panic("unable to draw text: row overflow");
 
-    SDL_Color    textColor = {color.r, color.g, color.b, color.a};
-    SDL_Surface* surface =
-        TTF_RenderText_Solid(win->text_font, text, textColor);
+    SDL_Color    textColor = to_sdl_color(color);
+    SDL_Surface* surface;
+    if (!shaded)
+        surface = TTF_RenderText_Solid(win->text_font, text, textColor);
+    else
+        surface = TTF_RenderText_Shaded(win->text_font, text, textColor,
+                                        to_sdl_color(color_black));
     SDL_Texture* texture =
         SDL_CreateTextureFromSurface(win->sdl_renderer, surface);
     SDL_Rect text_rect = {.y = row * win->text_char_height,
@@ -134,8 +144,8 @@ static void window_draw_text_internal(Window* win, uint32_t row, uint32_t col,
     SDL_DestroyTexture(texture);
 }
 
-void window_draw_text(Window* win, uint32_t row, uint32_t col, Color color,
-                      const char* text)
+void window_draw_text(Window* win, uint32_t row, uint32_t col, int shaded,
+                      Color color, const char* text)
 {
     char* text_dup = strdup(text);
     if (text_dup == NULL)
@@ -144,7 +154,7 @@ void window_draw_text(Window* win, uint32_t row, uint32_t col, Color color,
     uint32_t i     = 0;
     char*    token = strtok(text_dup, "\n");
     while (token != NULL) {
-        window_draw_text_internal(win, row + i++, col, color, token);
+        window_draw_text_internal(win, row + i++, col, shaded, color, token);
         token = strtok(NULL, "\n");
     }
 

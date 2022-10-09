@@ -32,8 +32,8 @@ Window* window_build(uint32_t width, uint32_t height);
 Window* window_build_for_text(uint32_t rows, uint32_t cols);
 void    window_destroy(Window* win);
 
-void window_draw_text(Window* win, uint32_t row, uint32_t col, Color color,
-                      const char* text);
+void window_draw_text(Window* win, uint32_t row, uint32_t col, int shaded,
+                      Color color, const char* text);
 void window_draw_pixel(Window* win, Point p, Color c);
 void window_prepare_redraw(Window* win);
 void window_present(Window* win);

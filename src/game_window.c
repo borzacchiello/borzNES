@@ -223,14 +223,14 @@ static void rich_gw_draw(void* _gw)
                 strcpy(disas, " ");
             strcat(disas, cpu_disassemble(gw->sys->cpu, (uint16_t)addr));
 
-            window_draw_text(gw->win, i + 4 + gw->text_top_padding,
+            window_draw_text(gw->win, i + 4 + gw->text_top_padding, 0,
                              gw->text_col_off - 1, color_white, disas);
         }
     }
 
-    window_draw_text(gw->win, 8 + gw->text_top_padding, gw->text_col_off,
+    window_draw_text(gw->win, 8 + gw->text_top_padding, gw->text_col_off, 0,
                      color_white, cpu_tostring(gw->sys->cpu));
-    window_draw_text(gw->win, 15 + gw->text_top_padding, gw->text_col_off,
+    window_draw_text(gw->win, 15 + gw->text_top_padding, gw->text_col_off, 0,
                      color_white, ppu_tostring(gw->sys->ppu));
 
     SDL_Texture* gamewin_texture = SDL_CreateTextureFromSurface(
@@ -339,6 +339,9 @@ typedef struct SimpleGameWindow {
     int gamewin_width;
     int gamewin_height;
 
+    const char* popup_txt;
+    int         popup_count;
+
     SDL_Surface* gamewin_surface;
 } SimpleGameWindow;
 
@@ -391,7 +394,21 @@ static void simple_gw_draw(void* _gw)
                              .h = gw->gamewin_height * gw->gamewin_scale};
     SDL_RenderCopy(gw->win->sdl_renderer, gamewin_texture, NULL, &gamewin_rect);
     SDL_DestroyTexture(gamewin_texture);
+
+    if (gw->popup_count > 0) {
+        window_draw_text(gw->win, 1, 1, 1, color_white, gw->popup_txt);
+        gw->popup_count--;
+    }
+
     window_present(gw->win);
+}
+
+static void simple_gw_show_popup(void* _gw, const char* txt)
+{
+    SimpleGameWindow* gw = (SimpleGameWindow*)_gw;
+
+    gw->popup_count = 120;
+    gw->popup_txt   = txt;
 }
 
 GameWindow* simple_gw_build(struct System* sys)
@@ -402,6 +419,9 @@ GameWindow* simple_gw_build(struct System* sys)
     gw->gamewin_scale  = 3;
     gw->gamewin_width  = 256;
     gw->gamewin_height = 240;
+
+    gw->popup_count = 0;
+    gw->popup_txt   = NULL;
 
     gw->win = window_build(gw->gamewin_width * gw->gamewin_scale,
                            gw->gamewin_height * gw->gamewin_scale);
@@ -417,6 +437,7 @@ GameWindow* simple_gw_build(struct System* sys)
     res->draw       = &simple_gw_draw;
     res->set_pixel  = &simple_gw_set_pixel;
     res->destroy    = &simple_gw_destroy;
+    res->show_popup = &simple_gw_show_popup;
     ppu_set_game_window(sys->ppu, res);
     return res;
 }
@@ -434,3 +455,9 @@ void gamewindow_set_pixel(GameWindow* gw, int x, int y, uint32_t rgba)
 }
 
 void gamewindow_draw(GameWindow* gw) { gw->draw(gw->obj); }
+
+void gamewindow_show_popup(GameWindow* gw, const char* txt)
+{
+    if (gw->show_popup)
+        gw->show_popup(gw->obj, txt);
+}

@@ -37,8 +37,8 @@ int main(int argc, char const* argv[])
     };
 
     int i = 0;
-    window_draw_text(win, 1, 1, color_white, "choose key for (q to quit):");
-    window_draw_text(win, 3, 4, color_white, keys[i + 1]);
+    window_draw_text(win, 1, 1, 0, color_white, "choose key for (q to quit):");
+    window_draw_text(win, 3, 4, 0, color_white, keys[i + 1]);
     window_present(win);
 
     SDL_Event e;
@@ -58,9 +58,9 @@ int main(int argc, char const* argv[])
             if (i >= sizeof(keys) / sizeof(char*))
                 break;
             window_prepare_redraw(win);
-            window_draw_text(win, 1, 1, color_white,
+            window_draw_text(win, 1, 1, 0, color_white,
                              "choose key for (q to quit):");
-            window_draw_text(win, 3, 4, color_white, keys[i + 1]);
+            window_draw_text(win, 3, 4, 0, color_white, keys[i + 1]);
             window_present(win);
         }
     }

@@ -151,26 +151,43 @@ int main(int argc, char const* argv[])
                         break;
                     case SDLK_m:
                         audio_on = !audio_on;
-                        if (audio_on)
+                        if (audio_on) {
                             apu_unpause(sys->apu);
-                        else
+                            gamewindow_show_popup(gw, "audio on");
+                        } else {
                             apu_pause(sys->apu);
+                            gamewindow_show_popup(gw, "audio off");
+                        }
                         break;
                     case SDLK_f:
-                        slow_freq     = 0;
-                        fast_freq     = !fast_freq;
-                        sys->cpu_freq = fast_freq ? CPU_2X_FREQ : CPU_1X_FREQ;
+                        slow_freq = 0;
+                        fast_freq = !fast_freq;
+                        if (fast_freq) {
+                            sys->cpu_freq = CPU_2X_FREQ;
+                            gamewindow_show_popup(gw, "fast mode");
+                        } else {
+                            sys->cpu_freq = CPU_1X_FREQ;
+                            gamewindow_show_popup(gw, "normal mode");
+                        }
                         break;
                     case SDLK_g:
-                        fast_freq     = 0;
-                        slow_freq     = !slow_freq;
-                        sys->cpu_freq = slow_freq ? CPU_0_5X_FREQ : CPU_1X_FREQ;
+                        fast_freq = 0;
+                        slow_freq = !slow_freq;
+                        if (slow_freq) {
+                            sys->cpu_freq = CPU_0_5X_FREQ;
+                            gamewindow_show_popup(gw, "slow mode");
+                        } else {
+                            sys->cpu_freq = CPU_1X_FREQ;
+                            gamewindow_show_popup(gw, "normal mode");
+                        }
                         break;
                     case SDLK_F1:
                         system_save_state(sys, sys->state_save_path);
+                        gamewindow_show_popup(gw, "state saved");
                         break;
                     case SDLK_F2:
                         system_load_state(sys, sys->state_save_path);
+                        gamewindow_show_popup(gw, "state loaded");
                         break;
 #if ENABLE_REWIND
                     case SDLK_r:
