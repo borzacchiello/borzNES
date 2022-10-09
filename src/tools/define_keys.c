@@ -68,6 +68,8 @@ int main(int argc, char const* argv[])
     config_save(DEFAULT_CFG_NAME);
     config_unload();
 
+    for (int i = 0; i < joysticks_size; ++i)
+        SDL_JoystickClose(joysticks[i]);
     free(joysticks);
     window_destroy(win);
     return 0;
