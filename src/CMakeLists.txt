@@ -10,6 +10,17 @@ set ( WIN_SDL2 "" CACHE STRING "Path to sdl2 mingw" )
 
 set ( CMAKE_C_STANDARD 17 )
 
+set ( mappers_src
+    mappers/mapper_common.c
+    mappers/000_nrom.c
+    mappers/001_mmc1.c
+    mappers/003_cnrom.c
+    mappers/004_mmc3.c
+    mappers/007_axrom.c
+    mappers/009_mmc2.c
+    mappers/071_camerica.c
+    mappers/163_fc001.c )
+
 set ( borzNES_src
     6502_cpu.c
     apu.c
@@ -23,7 +34,8 @@ set ( borzNES_src
     window.c
     game_window.c
     input_handler.c
-    config.c )
+    config.c
+    ${mappers_src} )
 
 set ( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Wall" )
 set ( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer -Wall" )
