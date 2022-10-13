@@ -13,7 +13,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define REWIND_BUF_SIZE 100
+#define SLEEP_BETWEEN_FRAMES 0
+#define REWIND_BUF_SIZE      100
 
 #ifdef __MINGW32__
 #define REWIND_DIR "borznes_rewind_states"
@@ -211,7 +212,7 @@ int main(int argc, char const* argv[])
                     apu_get_queued(sys->apu) < sys->apu->spec.freq) {
                     start       = end;
                     should_draw = 1;
-                } else if (ms_to_wait > end - start &&
+                } else if (SLEEP_BETWEEN_FRAMES && ms_to_wait > end - start &&
                            ms_to_wait - (end - start) > 5000)
                     msleep(ms_to_wait / 1000 - 5);
             }
