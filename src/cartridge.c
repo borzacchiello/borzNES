@@ -98,8 +98,8 @@ Cartridge* cartridge_load_from_buffer(Buffer raw)
     if (flag_8 == 0)
         flag_8 = 1;
     cart->SRAM_size = (uint32_t)flag_8 << 13;
-    if (cart->SRAM_size > raw.size)
-        panic("Invalid SRAM_size");
+    if (cart->SRAM_size > 10000000)
+        panic("Invalid SRAM_size (> 10 MB)");
     cart->SRAM = malloc_or_fail(cart->SRAM_size);
 
     uint32_t file_off = HEADER_SIZE;
