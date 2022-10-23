@@ -40,5 +40,6 @@
 
 int32_t calc_prg_bank_offset(Cartridge* cart, int32_t idx, uint32_t bank_size);
 int32_t calc_chr_bank_offset(Cartridge* cart, int32_t idx, uint32_t bank_size);
+int32_t calc_ram_bank_offset(Cartridge* cart, int32_t idx, uint32_t bank_size);
 
 #endif

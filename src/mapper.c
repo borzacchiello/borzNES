@@ -8,6 +8,7 @@
 #include "mappers/001_mmc1.h"
 #include "mappers/003_cnrom.h"
 #include "mappers/004_mmc3.h"
+#include "mappers/005_mmc5.h"
 #include "mappers/007_axrom.h"
 #include "mappers/009_mmc2.h"
 #include "mappers/071_camerica.h"
@@ -67,6 +68,18 @@ Mapper* mapper_build(Cartridge* cart)
             map->destroy     = &generic_destroy;
             map->serialize   = &MMC3_serialize;
             map->deserialize = &MMC3_deserialize;
+            break;
+        }
+        case 5: {
+            MMC5* mmc5       = MMC5_build(cart);
+            map->obj         = mmc5;
+            map->name        = "MMC5";
+            map->step        = &MMC5_step;
+            map->read        = &MMC5_read;
+            map->write       = &MMC5_write;
+            map->destroy     = &generic_destroy;
+            map->serialize   = &MMC5_serialize;
+            map->deserialize = &MMC5_deserialize;
             break;
         }
         case 7: {

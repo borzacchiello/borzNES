@@ -16,6 +16,7 @@ set ( mappers_src
     mappers/001_mmc1.c
     mappers/003_cnrom.c
     mappers/004_mmc3.c
+    mappers/005_mmc5.c
     mappers/007_axrom.c
     mappers/009_mmc2.c
     mappers/071_camerica.c
