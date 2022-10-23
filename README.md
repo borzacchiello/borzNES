@@ -95,9 +95,10 @@ keymappings can be changed using the tool "define_keys"
 - UNROM(002)
 - CNROM(003)
 - MMC3(004)
-- MMC5(005) partial
+- MMC5(005) partial support
 - AxROM(007)
 - MMC2(009)
+- MMC4(010)
 - Camerica(071)
 - FC-001(163)
 

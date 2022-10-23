@@ -12,6 +12,7 @@
 #include "mappers/005_mmc5.h"
 #include "mappers/007_axrom.h"
 #include "mappers/009_mmc2.h"
+#include "mappers/010_mmc4.h"
 #include "mappers/071_camerica.h"
 #include "mappers/163_fc001.h"
 
@@ -128,6 +129,16 @@ Mapper* mapper_build(Cartridge* cart)
             map->write       = &MMC2_write;
             map->serialize   = &MMC2_serialize;
             map->deserialize = &MMC2_deserialize;
+            break;
+        }
+        case 10: {
+            MMC4* mmc4       = MMC4_build(cart);
+            map->obj         = mmc4;
+            map->name        = "MMC4";
+            map->read        = &MMC4_read;
+            map->write       = &MMC4_write;
+            map->serialize   = &MMC4_serialize;
+            map->deserialize = &MMC4_deserialize;
             break;
         }
         case 71: {
