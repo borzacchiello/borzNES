@@ -210,22 +210,23 @@ static void rich_gw_draw(void* _gw)
     }
     g_prev_timestamp = get_timestamp_milliseconds();
 
-    for (int32_t i = -2; i < 3; ++i) {
-        int32_t addr = (int32_t)gw->sys->cpu->PC;
-        addr += i;
-        if (addr >= 0) {
-            static char disas[64];
-            memset(disas, 0, sizeof(disas));
+    int32_t addr = (int32_t)gw->sys->cpu->PC;
+    for (int32_t i = 0; i < 5; ++i) {
+        static char disas[64];
+        memset(disas, 0, sizeof(disas));
 
-            if (i == 0)
-                strcpy(disas, ">");
-            else
-                strcpy(disas, " ");
-            strcat(disas, cpu_disassemble(gw->sys->cpu, (uint16_t)addr));
+        if (i == 0)
+            strcpy(disas, ">");
+        else
+            strcpy(disas, " ");
+        strcat(disas, cpu_disassemble(gw->sys->cpu, (uint16_t)addr));
 
-            window_draw_text(gw->win, i + 4 + gw->text_top_padding,
-                             gw->text_col_off - 1, 0, color_white, disas);
-        }
+        window_draw_text(gw->win, i + gw->text_top_padding,
+                         gw->text_col_off - 1, 0, color_white, disas);
+        int32_t next_addr = cpu_next_instr_address(gw->sys->cpu, addr);
+        if (next_addr == 0)
+            break;
+        addr = next_addr;
     }
 
     window_draw_text(gw->win, 8 + gw->text_top_padding, gw->text_col_off, 0,
