@@ -12,6 +12,7 @@ typedef struct Buffer {
 
 void* malloc_or_fail(size_t n);
 void* calloc_or_fail(size_t n);
+void* realloc_or_fail(void* b, size_t size);
 
 Buffer buf_malloc(size_t n);
 Buffer buf_calloc(size_t n);

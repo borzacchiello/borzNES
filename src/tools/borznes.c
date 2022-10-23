@@ -13,8 +13,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define SLEEP_BETWEEN_FRAMES 0
-#define REWIND_BUF_SIZE      100
+#define REWIND_BUF_SIZE 100
 
 #ifdef __MINGW32__
 #define REWIND_DIR "borznes_rewind_states"
@@ -190,9 +189,11 @@ int main(int argc, char const* argv[])
                 system_load_state(sys, sys->state_save_path);
                 gamewindow_show_popup(gw, "state loaded");
             }
-            if (mk.rewind) {
+            if (mode != REWIND_MODE && mk.rewind) {
+                printf("rewind!\n");
                 mode = REWIND_MODE;
-            } else {
+            } else if (!mk.rewind && mode == REWIND_MODE) {
+                printf("no more rewind!\n");
                 mode = NORMAL_MODE;
             }
         }
@@ -212,7 +213,7 @@ int main(int argc, char const* argv[])
                     apu_get_queued(sys->apu) < sys->apu->spec.freq) {
                     start       = end;
                     should_draw = 1;
-                } else if (SLEEP_BETWEEN_FRAMES && ms_to_wait > end - start &&
+                } else if (ms_to_wait > end - start &&
                            ms_to_wait - (end - start) > 5000)
                     msleep(ms_to_wait / 1000 - 5);
             }

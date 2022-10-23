@@ -223,8 +223,8 @@ static void rich_gw_draw(void* _gw)
                 strcpy(disas, " ");
             strcat(disas, cpu_disassemble(gw->sys->cpu, (uint16_t)addr));
 
-            window_draw_text(gw->win, i + 4 + gw->text_top_padding, 0,
-                             gw->text_col_off - 1, color_white, disas);
+            window_draw_text(gw->win, i + 4 + gw->text_top_padding,
+                             gw->text_col_off - 1, 0, color_white, disas);
         }
     }
 
@@ -326,6 +326,7 @@ GameWindow* rich_gw_build(System* sys)
     res->draw       = &rich_gw_draw;
     res->set_pixel  = &rich_gw_set_pixel;
     res->destroy    = &rich_gw_destroy;
+    res->show_popup = NULL;
     ppu_set_game_window(sys->ppu, res);
     return res;
 }
