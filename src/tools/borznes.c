@@ -190,10 +190,8 @@ int main(int argc, char const* argv[])
                 gamewindow_show_popup(gw, "state loaded");
             }
             if (mode != REWIND_MODE && mk.rewind) {
-                printf("rewind!\n");
                 mode = REWIND_MODE;
             } else if (!mk.rewind && mode == REWIND_MODE) {
-                printf("no more rewind!\n");
                 mode = NORMAL_MODE;
             }
         }
