@@ -5,6 +5,7 @@
 #include "alloc.h"
 #include "logging.h"
 #include "game_window.h"
+#include "mapper.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -381,6 +382,8 @@ void ppu_step(Ppu* ppu)
     // BACKGROUND
     if (rendering_enabled) {
         if (render_line && fetch_cycle) {
+            mapper_notify_fetching(ppu->sys->mapper, ppu, FETCHING_BACKGROUND);
+
             ppu->tile_data <<= 4;
             switch (ppu->cycle % 8) {
                 case 0: {
@@ -449,6 +452,8 @@ void ppu_step(Ppu* ppu)
     if (rendering_enabled) {
         if (ppu->cycle == 257) {
             if (visible_line) {
+                mapper_notify_fetching(ppu->sys->mapper, ppu, FETCHING_SPRITE);
+
                 int32_t h = 8;
                 if (ppu->ctrl_flags.sprite_size)
                     h = 16;

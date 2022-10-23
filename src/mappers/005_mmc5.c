@@ -6,36 +6,9 @@
 #define CPU_ACCESS_MODE         2
 #define CPU_READONLY_MODE       3
 
-typedef enum {
-    FETCH_BACKGROUND = 1,
-    FETCH_SPRITE     = 2,
-    FETCH_NONE       = 3
-} FetchingMode;
-
-static FetchingMode fetching_mode(Ppu* ppu)
-{
-    int rendering_enabled =
-        ppu->mask_flags.show_background || ppu->mask_flags.show_sprites;
-    int visible_line    = ppu->scanline < 240;
-    int pre_fetch_cycle = ppu->cycle >= 321 && ppu->cycle <= 336;
-    int visible_cycle   = ppu->cycle >= 1 && ppu->cycle <= 256;
-    int fetch_cycle     = pre_fetch_cycle || visible_cycle;
-
-    if (rendering_enabled && visible_line && fetch_cycle)
-        return FETCH_BACKGROUND;
-    if (rendering_enabled && ppu->cycle == 256)
-        return FETCH_SPRITE;
-    return FETCH_NONE;
-}
-
-static inline int is_16_sprite_mode(Ppu* ppu)
-{
-    return ppu->ctrl_flags.sprite_size;
-}
-
 MMC5* MMC5_build(struct Cartridge* cart)
 {
-    warning("Mapper MMC5 is WIP, and it does not work AtM");
+    warning("Mapper MMC5 is WIP, not all features have been implemented");
 
     MMC5* map = calloc_or_fail(sizeof(MMC5));
     map->cart = cart;
@@ -75,13 +48,13 @@ static int32_t get_chr_offset(MMC5* map, uint16_t addr)
         case 2: {
             int32_t base = regs[conv_tab_2[addr / 0x800]];
             base         = calc_chr_bank_offset(map->cart, base, 0x800);
-            off          = addr % 0x1000 + base;
+            off          = addr % 0x800 + base;
             break;
         }
         case 3: {
             int32_t base = regs[addr / 0x400];
             base         = calc_chr_bank_offset(map->cart, base, 0x400);
-            off          = addr % 0x1000 + base;
+            off          = addr % 0x400 + base;
             break;
         }
     }
@@ -174,8 +147,23 @@ static int32_t get_prg_offset(MMC5* map, uint16_t addr, int* in_ram)
 static uint8_t MMC5_read_reg(MMC5* map, uint16_t addr)
 {
     switch (addr) {
-        case 0x5204:
-            return 0;
+        case 0x5204: {
+            uint8_t v = map->irq_pending << 7;
+            if (map->scanline >= 0 && map->scanline <= 239)
+                v |= (uint8_t)1 << 6;
+            map->irq_pending = 0;
+            return v;
+        }
+        case 0x5205: {
+            uint16_t res =
+                (uint16_t)map->multiplicand * (uint16_t)map->multiplier;
+            return res & 0xff;
+        }
+        case 0x5206: {
+            uint16_t res =
+                (uint16_t)map->multiplicand * (uint16_t)map->multiplier;
+            return (res >> 8) & 0xff;
+        }
         default:
             warning("unsupported reg 0x%04x in MMC5 mapper [read]", addr);
     }
@@ -203,8 +191,9 @@ uint8_t MMC5_read(void* _map, uint16_t addr)
         check_inbound(off, map->cart->PRG_size);
         return map->cart->PRG[off];
     }
-    if (addr >= 0x5C00) {
-        // ExRAM
+    if (addr >= 0x5C00 && addr < 0x6000) {
+        // FIXME: I should check ExMode
+        return map->ExRAM[addr - 0x5C00];
     }
 
     warning("unexpected read at address 0x%04x from MMC5 mapper", addr);
@@ -228,7 +217,13 @@ static void MMC5_write_reg(MMC5* map, uint16_t addr, uint8_t value)
             break;
         case 0x5104:
             map->exram_mode = value & 3;
+            if (map->exram_mode == 1)
+                warning("ExRAM mode 1 is not implemented");
             break;
+        case 0x5105: {
+            map->nametab_reg = value;
+            break;
+        }
         case 0x5106:
             map->fill_tile = value;
             break;
@@ -240,7 +235,7 @@ static void MMC5_write_reg(MMC5* map, uint16_t addr, uint8_t value)
             break;
         case 0x5114 ... 0x5116: {
             uint8_t off        = addr - 0x5113;
-            map->prg_regs[off] = value & 0x7f;
+            map->prg_regs[off] = value;
             break;
         }
         case 0x5117:
@@ -248,19 +243,33 @@ static void MMC5_write_reg(MMC5* map, uint16_t addr, uint8_t value)
             break;
         case 0x5120 ... 0x5127: {
             uint8_t off          = addr - 0x5120;
-            map->chr_regs_A[off] = (uint16_t)value | (map->high_chr_reg << 7);
+            map->chr_regs_A[off] = (uint16_t)value | (map->high_chr_reg << 8);
             break;
         }
         case 0x5128 ... 0x512B: {
-            uint8_t off          = addr - 0x5128;
-            map->chr_regs_B[off] = (uint16_t)value | (map->high_chr_reg << 7);
+            uint8_t  off         = addr - 0x5128;
+            uint16_t v           = (uint16_t)value | (map->high_chr_reg << 8);
+            map->chr_regs_B[off] = map->chr_regs_B[off + 4] = v;
             break;
         }
         case 0x5130:
             map->high_chr_reg = value & 3;
             break;
+        case 0x5203:
+            map->irq_target = value;
+            break;
+        case 0x5204:
+            map->irq_enable = (value & 0x80) ? 1 : 0;
+            break;
+        case 0x5205:
+            map->multiplicand = value;
+            break;
+        case 0x5206:
+            map->multiplier = value;
+            break;
         default:
-            warning("unsupported reg 0x%04x in MMC5 mapper [value: 0x%02x]", addr, value);
+            warning("unsupported reg 0x%04x in MMC5 mapper [value: 0x%02x]",
+                    addr, value);
     }
 }
 
@@ -278,7 +287,8 @@ void MMC5_write(void* _map, uint16_t addr, uint8_t value)
         return;
     }
     if (addr >= 0x5C00 && addr < 0x6000) {
-        // ExRAM
+        // FIXME: I should check ExMode
+        map->ExRAM[addr - 0x5C00] = value;
         return;
     }
     if (addr >= 0x6000) {
@@ -296,24 +306,105 @@ void MMC5_write(void* _map, uint16_t addr, uint8_t value)
             addr, value);
 }
 
+static uint8_t get_nametab_reg_value(MMC5* map, uint8_t tab)
+{
+    switch (tab) {
+        case 0:
+            return map->nametab_reg & 3;
+        case 1:
+            return (map->nametab_reg >> 2) & 3;
+        case 2:
+            return (map->nametab_reg >> 4) & 3;
+        case 3:
+            return (map->nametab_reg >> 6) & 3;
+        default:
+            break;
+    }
+
+    panic("get_nametab_reg_value(): unreachable code");
+}
+
+uint8_t MMC5_nametable_read(void* _map, struct Ppu* ppu, uint16_t addr)
+{
+    assert(addr >= 0x2000 && addr <= 0x3EFF);
+
+    MMC5* map = (MMC5*)_map;
+
+    addr         = (addr - 0x2000) % 0x1000;
+    uint16_t tab = addr / 0x400;
+    uint16_t off = addr % 0x400;
+
+    switch (get_nametab_reg_value(map, tab)) {
+        case 0:
+            // NTA
+            return ppu->nametable_data[off];
+        case 1:
+            // NTB
+            return ppu->nametable_data[0x400 + off];
+        case 2:
+            // ExRAM
+            if (map->exram_mode == 0 || map->exram_mode == 1)
+                return map->ExRAM[off];
+            return 0;
+        case 3:
+            // FILL
+            return map->fill_tile;
+    }
+
+    panic("MMC5_nametable_read(): unreachable");
+}
+
+void MMC5_nametable_write(void* _map, struct Ppu* ppu, uint16_t addr,
+                          uint8_t value)
+{
+    assert(addr >= 0x2000 && addr <= 0x3EFF);
+
+    MMC5* map = (MMC5*)_map;
+
+    addr         = (addr - 0x2000) % 0x1000;
+    uint16_t tab = addr / 0x400;
+    uint16_t off = addr % 0x400;
+
+    switch (get_nametab_reg_value(map, tab)) {
+        case 0:
+            // NTA
+            ppu->nametable_data[off] = value;
+            return;
+        case 1:
+            // NTB
+            ppu->nametable_data[0x400 + off] = value;
+            return;
+        case 2:
+        case 3:
+            return;
+    }
+
+    panic("MMC5_nametable_read(): unreachable");
+}
+
 void MMC5_step(void* _map, System* sys)
 {
     MMC5* map = (MMC5*)_map;
 
     map->scanline = sys->ppu->scanline;
-    if (is_16_sprite_mode(sys->ppu)) {
-        FetchingMode m = fetching_mode(sys->ppu);
-        if (m == FETCH_BACKGROUND)
-            map->chr_A_mode = 0;
-        else if (m == FETCH_SPRITE)
-            map->chr_A_mode = 1;
-    } else {
-        // This is not correct, I should use the last written chr set of regs
-        // (A or B) (?)
-        map->chr_A_mode = 1;
+    if (map->irq_enable && map->scanline != 0 && map->scanline < 240) {
+        // This is a *very* simplified version of its actual behavior
+        if (map->scanline == map->irq_target) {
+            cpu_trigger_irq(sys->cpu);
+        }
     }
+}
 
-    // TODO IRQ
+void MMC5_notify_fetching(void* _map, Ppu* ppu, FetchingTarget ft)
+{
+    MMC5* map = (MMC5*)_map;
+
+    if (ppu->ctrl_flags.sprite_size) {
+        if (ft == FETCHING_BACKGROUND)
+            map->chr_A_mode = 0;
+        else
+            map->chr_A_mode = 1;
+    }
 }
 
 GEN_SERIALIZER(MMC5)

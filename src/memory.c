@@ -128,19 +128,6 @@ static void cpu_memory_write(void* _mem, uint16_t addr, uint8_t value)
     panic("Invalid write @ 0x%04x [0x%02x]", addr, value);
 }
 
-static uint16_t ppu_mirror_tab[5][4] = {
-    {0, 0, 1, 1}, {0, 1, 0, 1}, {0, 0, 0, 0}, {1, 1, 1, 1}, {0, 1, 2, 3}};
-
-static uint16_t mirror_address(uint8_t mirror_type, uint16_t addr)
-{
-    assert(mirror_type >= 0 && mirror_type <= 4);
-
-    addr         = (addr - 0x2000) % 0x1000;
-    uint16_t tab = addr / 0x400;
-    uint16_t off = addr % 0x400;
-    return (uint16_t)0x2000 + ppu_mirror_tab[mirror_type][tab] * 0x400 + off;
-}
-
 static uint8_t read_palette(Ppu* ppu, uint16_t addr)
 {
     if (addr >= 16 && addr % 4 == 0)
@@ -157,9 +144,8 @@ static void write_palette(Ppu* ppu, uint16_t addr, uint8_t val)
 
 static uint8_t ppu_memory_read(void* _mem, uint16_t addr)
 {
-    InternalMemory* mem  = (InternalMemory*)_mem;
-    Ppu*            ppu  = mem->sys->ppu;
-    Cartridge*      cart = mem->sys->cart;
+    InternalMemory* mem = (InternalMemory*)_mem;
+    Ppu*            ppu = mem->sys->ppu;
 
     addr = addr % 0x4000;
     if (addr < 0x2000) {
@@ -168,7 +154,7 @@ static uint8_t ppu_memory_read(void* _mem, uint16_t addr)
     }
     if (addr < 0x3F00) {
         // Nametable Memory (VRAM) [ 0x2000 -> 0x3EFF ]
-        return ppu->nametable_data[mirror_address(cart->mirror, addr) % 2048];
+        return mapper_nametable_read(mem->sys->mapper, ppu, addr);
     }
     if (addr < 0x4000) {
         // Palette Memory
@@ -182,7 +168,6 @@ static void ppu_memory_write(void* _mem, uint16_t addr, uint8_t value)
 {
     InternalMemory* mem  = (InternalMemory*)_mem;
     Ppu*            ppu  = mem->sys->ppu;
-    Cartridge*      cart = mem->sys->cart;
 
     addr = addr % 0x4000;
     if (addr < 0x2000) {
@@ -190,7 +175,7 @@ static void ppu_memory_write(void* _mem, uint16_t addr, uint8_t value)
         return;
     }
     if (addr < 0x3F00) {
-        ppu->nametable_data[mirror_address(cart->mirror, addr) % 2048u] = value;
+        mapper_nametable_write(mem->sys->mapper, ppu, addr, value);
         return;
     }
     if (addr < 0x4000) {
