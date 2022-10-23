@@ -898,7 +898,7 @@ uint16_t cpu_next_instr_address(Cpu* cpu, uint16_t addr)
     uint8_t opcode = memory_read(cpu->mem, addr);
     uint8_t size   = instr_size[opcode];
     if (size == 0)
-        panic("not a valid opcode 0x%02x", opcode);
+        return 0;
 
     return addr + size;
 }
