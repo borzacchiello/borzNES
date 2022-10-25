@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#define DELTA_MS_TO_WAIT     5000
 #define SLEEP_BETWEEN_FRAMES 0
 #define REWIND_BUF_SIZE      100
 
@@ -206,6 +207,10 @@ int main(int argc, char const* argv[])
 
                 should_draw = 0;
                 ms_to_wait  = 1000000ll * cycles / sys->cpu_freq;
+                if (ms_to_wait > DELTA_MS_TO_WAIT)
+                    ms_to_wait -= DELTA_MS_TO_WAIT;
+                else
+                    ms_to_wait = 0;
             } else {
                 end = get_timestamp_microseconds();
                 if (end - start > ms_to_wait &&

@@ -23,6 +23,7 @@
 #include <arpa/inet.h>
 #endif
 
+#define DELTA_MS_TO_WAIT     5000
 #define SLEEP_BETWEEN_FRAMES 0
 #define BORZNES_DEFAULT_PORT 54000
 
@@ -239,6 +240,11 @@ int main(int argc, char const* argv[])
                 cycles += system_step(sys);
 
             microseconds_to_wait = 1000000ll * cycles / sys->cpu_freq;
+            if (microseconds_to_wait > DELTA_MS_TO_WAIT)
+                microseconds_to_wait -= DELTA_MS_TO_WAIT;
+            else
+                microseconds_to_wait = 0;
+
         } else if (state == WAIT_FOR_KEY) {
             if (sync_recv(fd1, &p2.state, sizeof(p2.state)) != sizeof(p2.state))
                 panic("unable to read keys");
