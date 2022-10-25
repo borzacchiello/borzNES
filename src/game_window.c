@@ -12,8 +12,7 @@
 
 #define SHOW_FPS 1
 
-long        latency          = 0;
-static long g_prev_timestamp = 0;
+long latency = 0;
 
 static long get_timestamp_milliseconds()
 {
@@ -29,6 +28,26 @@ long get_timestamp_microseconds()
     gettimeofday(&te, NULL);
 
     return te.tv_sec * 1000000LL + te.tv_usec;
+}
+
+static void calculate_and_show_fps(SDL_Window* win)
+{
+    static const int fps_counter_max = 60;
+    static char      fps_str[128];
+    static int       show_fps_counter = 0;
+    static long      prev_timestamp   = 0;
+
+    if (++show_fps_counter == fps_counter_max) {
+        show_fps_counter = 0;
+        memset(fps_str, 0, sizeof(fps_str));
+
+        long   dt  = get_timestamp_milliseconds() - prev_timestamp;
+        double fps = 1000.0l * fps_counter_max / dt;
+        sprintf(fps_str, "borzNES - latency: %ld ms - fps: %.03lf", latency,
+                fps);
+        SDL_SetWindowTitle(win, fps_str);
+        prev_timestamp = get_timestamp_milliseconds();
+    }
 }
 
 // RichGameWindow
@@ -197,18 +216,7 @@ static void rich_gw_draw(void* _gw)
         draw_patterntables(gw, gw->patterntab_palette_idx);
     }
 
-    static char fps_str[64];
-    static int  show_fps_counter = 0;
-    if (++show_fps_counter == 30) {
-        show_fps_counter = 0;
-        memset(fps_str, 0, sizeof(fps_str));
-
-        long   dt  = get_timestamp_milliseconds() - g_prev_timestamp;
-        double fps = 1000.0l / dt;
-        sprintf(fps_str, "borzNES - FPS: %.03lf", fps);
-        SDL_SetWindowTitle(gw->win->sdl_window, fps_str);
-    }
-    g_prev_timestamp = get_timestamp_milliseconds();
+    calculate_and_show_fps(gw->win->sdl_window);
 
     int32_t addr = (int32_t)gw->sys->cpu->PC;
     for (int32_t i = 0; i < 5; ++i) {
@@ -320,8 +328,6 @@ GameWindow* rich_gw_build(System* sys)
     gw->patterntab2_surface = SDL_CreateRGBSurface(
         0, 128, 128, 32, 0xFF000000, 0x00FF0000, 0x0000FF00, 0x000000FF);
 
-    g_prev_timestamp = get_timestamp_milliseconds();
-
     GameWindow* res = malloc_or_fail(sizeof(GameWindow));
     res->obj        = gw;
     res->draw       = &rich_gw_draw;
@@ -374,19 +380,7 @@ static void simple_gw_draw(void* _gw)
 
     window_prepare_redraw(gw->win);
 
-    static char fps_str[128];
-    static int  show_fps_counter = 0;
-    if (++show_fps_counter == 30) {
-        show_fps_counter = 0;
-        memset(fps_str, 0, sizeof(fps_str));
-
-        long   dt  = get_timestamp_milliseconds() - g_prev_timestamp;
-        double fps = 1000.0l / dt;
-        sprintf(fps_str, "borzNES - latency: %ld ms - fps: %.03lf", latency,
-                fps);
-        SDL_SetWindowTitle(gw->win->sdl_window, fps_str);
-    }
-    g_prev_timestamp = get_timestamp_milliseconds();
+    calculate_and_show_fps(gw->win->sdl_window);
 
     SDL_Texture* gamewin_texture = SDL_CreateTextureFromSurface(
         gw->win->sdl_renderer, gw->gamewin_surface);
@@ -431,8 +425,6 @@ GameWindow* simple_gw_build(struct System* sys)
     gw->gamewin_surface =
         SDL_CreateRGBSurface(0, gw->gamewin_width, gw->gamewin_height, 32,
                              0xFF000000, 0x00FF0000, 0x0000FF00, 0x000000FF);
-
-    g_prev_timestamp = get_timestamp_milliseconds();
 
     GameWindow* res = malloc_or_fail(sizeof(GameWindow));
     res->obj        = gw;
