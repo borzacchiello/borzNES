@@ -23,6 +23,7 @@
 #include <arpa/inet.h>
 #endif
 
+#define SLEEP_BETWEEN_FRAMES 0
 #define BORZNES_DEFAULT_PORT 54000
 
 typedef enum EmuState { DRAW_FRAME, WAIT_FOR_KEY, WAIT_UNTIL_READY } EmuState;
@@ -254,7 +255,8 @@ int main(int argc, char const* argv[])
                 state = DRAW_FRAME;
             else if (microseconds_to_wait > end - start &&
                      microseconds_to_wait - (end - start) > 5000)
-                msleep(microseconds_to_wait / 1000 - 5);
+                if (SLEEP_BETWEEN_FRAMES)
+                    msleep(microseconds_to_wait / 1000 - 5);
         }
     }
 

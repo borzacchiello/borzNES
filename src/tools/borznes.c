@@ -13,7 +13,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define REWIND_BUF_SIZE 100
+#define SLEEP_BETWEEN_FRAMES 0
+#define REWIND_BUF_SIZE      100
 
 #ifdef __MINGW32__
 #define REWIND_DIR "borznes_rewind_states"
@@ -213,7 +214,8 @@ int main(int argc, char const* argv[])
                     should_draw = 1;
                 } else if (ms_to_wait > end - start &&
                            ms_to_wait - (end - start) > 5000)
-                    msleep(ms_to_wait / 1000 - 5);
+                    if (SLEEP_BETWEEN_FRAMES)
+                        msleep(ms_to_wait / 1000 - 5);
             }
 
             end = get_timestamp_microseconds();
