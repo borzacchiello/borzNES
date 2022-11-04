@@ -97,7 +97,12 @@ Cartridge* cartridge_load_from_buffer(Buffer raw)
 
     if (flag_8 == 0)
         flag_8 = 1;
-    cart->SRAM_size = (uint32_t)flag_8 << 13;
+    if (cart->mapper == 5)
+        // force 64K of RAM fro MMC5 mapper
+        cart->SRAM_size = 2 << 15;
+    else
+        cart->SRAM_size = (uint32_t)flag_8 << 13;
+
     if (cart->SRAM_size > 10000000)
         panic("Invalid SRAM_size (> 10 MB)");
     cart->SRAM = malloc_or_fail(cart->SRAM_size);

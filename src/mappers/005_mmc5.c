@@ -13,10 +13,7 @@ MMC5* MMC5_build(struct Cartridge* cart)
     MMC5* map = calloc_or_fail(sizeof(MMC5));
     map->cart = cart;
 
-    // Force every MMC5 game to have 64k of RAM
-    cart->SRAM_size = 2 << 15;
-    cart->SRAM      = realloc_or_fail(cart->SRAM, cart->SRAM_size);
-
+    map->prg_mode    = 3;
     map->prg_regs[4] = 0xff;
 
     map->read_only_ram = 1;
@@ -220,10 +217,9 @@ static void MMC5_write_reg(MMC5* map, uint16_t addr, uint8_t value)
             if (map->exram_mode == 1)
                 warning("ExRAM mode 1 is not implemented");
             break;
-        case 0x5105: {
+        case 0x5105:
             map->nametab_reg = value;
             break;
-        }
         case 0x5106:
             map->fill_tile = value;
             break;
