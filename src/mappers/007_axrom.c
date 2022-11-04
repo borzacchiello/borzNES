@@ -43,6 +43,7 @@ void AxROM_write(void* _map, uint16_t addr, uint8_t value)
         return;
     }
     if (addr >= 0x6000) {
+        check_inbound(addr - 0x6000, map->cart->SRAM_size);
         map->cart->SRAM[addr - 0x6000] = value;
         return;
     }

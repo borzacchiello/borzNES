@@ -29,7 +29,7 @@ void gamewindow_destroy(GameWindow* gw);
 void gamewindow_set_pixel(GameWindow* gw, int x, int y, uint32_t rgba);
 void gamewindow_draw(GameWindow* gw);
 
-// TXT must live for a some frames. Ideally, use it only with global strings
+// TXT must live for some frames. Ideally, use it only with global strings
 void gamewindow_show_popup(GameWindow* gw, const char* txt);
 
 long get_timestamp_microseconds();
