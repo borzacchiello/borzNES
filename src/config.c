@@ -21,8 +21,9 @@ void config_load(const char* filename)
     while (fgets(buf, sizeof(buf), f)) {
         uint64_t value;
 
-        tmp[127]  = 0;
-        int nread = sscanf(buf, "%s : %llx", tmp, (unsigned long long*)&value);
+        tmp[127] = 0;
+        int nread =
+            sscanf(buf, "%126s : %llx", tmp, (unsigned long long*)&value);
         if (nread == EOF)
             // empty line
             continue;

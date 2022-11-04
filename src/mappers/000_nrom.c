@@ -29,6 +29,7 @@ uint8_t NROM_read(void* _map, uint16_t addr)
     }
     if (addr >= 0x6000) {
         int index = addr - 0x6000;
+        check_inbound(index, map->cart->SRAM_size);
         return map->cart->SRAM[index];
     }
 
@@ -45,7 +46,8 @@ void NROM_write(void* _map, uint16_t addr, uint8_t value)
     } else if (addr >= 0x8000) {
         map->prg_bank1 = (int)value % map->prg_banks;
     } else if (addr >= 0x6000) {
-        int index              = addr - 0x6000;
+        int index = addr - 0x6000;
+        check_inbound(index, map->cart->SRAM_size);
         map->cart->SRAM[index] = value;
     } else {
         warning("unexpected write at address 0x%04x from NROM mapper [0x%02x]",

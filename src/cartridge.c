@@ -190,6 +190,24 @@ void cartridge_save_sav(Cartridge* cart)
     write_file_raw(cart->sav_path, &buf);
 }
 
+static const char* mirror_to_string(Mirroring m)
+{
+    switch (m) {
+        case MIRROR_HORIZONTAL:
+            return "horizontal";
+        case MIRROR_VERTICAL:
+            return "vertical";
+        case MIRROR_SINGLE0:
+            return "single_0";
+        case MIRROR_SINGLE1:
+            return "single_1";
+        case MIRROR_FOUR:
+            return "four";
+        default:
+            return "unknown";
+    }
+}
+
 void cartridge_print(Cartridge* cart)
 {
     printf("Cartridge @ \"%s\" {\n", cart->fpath);
@@ -197,10 +215,7 @@ void cartridge_print(Cartridge* cart)
     printf("  CHR_size:  %u\n", cart->CHR_size);
     printf("  mapper:    %u\n", cart->mapper);
     printf("  battery:   %s\n", cart->battery ? "true" : "false");
-    printf("  mirroring: %s\n",
-           cart->mirror == MIRROR_HORIZONTAL
-               ? "horizontal"
-               : (cart->mirror == MIRROR_VERTICAL ? "vertical" : "all"));
+    printf("  mirroring: %s\n", mirror_to_string(cart->mirror));
     printf("}\n");
 }
 
