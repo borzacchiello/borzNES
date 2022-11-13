@@ -13,8 +13,8 @@ build-system: cmake
 ## Directories containing sample inputs for the code under test.
 ## See https://llvm.org/docs/LibFuzzer.html#corpus and
 ## https://aflplus.plus/docs/fuzzing_in_depth/#a-collecting-inputs.
-#seed-corpus-dirs:
-# - path/to/seed-corpus
+seed-corpus-dirs:
+ - tests/corpus
 
 ## A file containing input language keywords or other interesting byte
 ## sequences. See https://llvm.org/docs/LibFuzzer.html#dictionaries and
@@ -24,8 +24,9 @@ build-system: cmake
 ## Command-line arguments to pass to the fuzzing engine (libFuzzer or
 ## AFL++). See https://llvm.org/docs/LibFuzzer.html#options and
 ## https://www.mankier.com/8/afl-fuzz.
-#engine-args:
-# - -rss_limit_mb=4096
+engine-args:
+ - -rss_limit_mb=6000
+ - -detect_leaks=0
 
 ## Maximum time to run fuzz tests. The default is to run indefinitely.
 #timeout: 30m

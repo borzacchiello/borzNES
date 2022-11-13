@@ -1,18 +1,22 @@
-#include "../src/system.h"
-#include "../src/6502_cpu.h"
-#include "../src/memory.h"
-#include "../src/ppu.h"
-#include "../src/apu.h"
-#include "../src/cartridge.h"
-#include "../src/mapper.h"
+#include <cifuzz/cifuzz.h>
+#include <assert.h>
 
 #include "common.h"
+
+#include "../system.h"
+#include "../6502_cpu.h"
+#include "../memory.h"
+#include "../ppu.h"
+#include "../apu.h"
+#include "../cartridge.h"
+#include "../mapper.h"
+#include "../alloc.h"
 
 #define N 1000L
 
 static System* mk_sys(const uint8_t* Data, size_t Size)
 {
-    Buffer  buf = {.buffer = Data, .size = Size};
+    Buffer  buf = {.buffer = (uint8_t*)Data, .size = Size};
     System* sys = calloc_or_fail(sizeof(System));
 
     Cartridge* cart = cartridge_load_from_buffer(buf);
@@ -37,26 +41,39 @@ static System* mk_sys(const uint8_t* Data, size_t Size)
 
 static void del_sys(System* sys)
 {
-    cartridge_unload(sys->cart);
-    mapper_destroy(sys->mapper);
-    cpu_destroy(sys->cpu);
-    ppu_destroy(sys->ppu);
+    if (sys->cart)
+        cartridge_unload(sys->cart);
+    if (sys->mapper)
+        mapper_destroy(sys->mapper);
+    if (sys->cpu)
+        cpu_destroy(sys->cpu);
+    if (sys->ppu)
+        ppu_destroy(sys->ppu);
     free(sys->apu);
     free(sys);
 }
 
-int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size)
+FUZZ_TEST_SETUP()
 {
-    int result = setjmp(env);
-    if (result != 0)
-        return 1;
+    // Perform any one-time setup required by the FUZZ_TEST function.
+}
 
-    System* sys = mk_sys(Data, Size);
+FUZZ_TEST(const uint8_t* data, size_t size)
+{
+    System* sys = NULL;
+
+    int result = setjmp(env);
+    if (result != 0) {
+        if (sys)
+            del_sys(sys);
+        return;
+    }
+
+    sys = mk_sys(data, size);
 
     for (long i = 0; i < N; ++i) {
         uint64_t cpu_cycles = cpu_step(sys->cpu);
         uint64_t ppu_cycles = 3ul * cpu_cycles;
-        uint64_t apu_cycles = cpu_cycles;
 
         for (uint64_t i = 0; i < ppu_cycles; ++i) {
             ppu_step(sys->ppu);
@@ -65,16 +82,4 @@ int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size)
     }
 
     del_sys(sys);
-    return 0;
 }
-
-#ifdef AFL
-int main(int argc, char const* argv[])
-{
-    if (argc < 2)
-        return 1;
-
-    Buffer b = read_file_raw(argv[1]);
-    return LLVMFuzzerTestOneInput(b.buffer, b.size);
-}
-#endif

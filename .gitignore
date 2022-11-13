@@ -1,5 +1,8 @@
 .vscode/
 build/
 build_win/
-src/.cifuzz-build/
 
+src/.cifuzz-build/
+src/.cifuzz-corpus/
+src/.cifuzz-findings/
+src/system_fuzz_test_inputs/

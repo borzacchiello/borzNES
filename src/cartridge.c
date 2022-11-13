@@ -118,8 +118,16 @@ Cartridge* cartridge_load_from_buffer(Buffer raw)
     } else
         cart->trainer = NULL;
 
-    if (file_off + cart->PRG_size > raw.size)
+    if (file_off + cart->PRG_size > raw.size) {
+        free(cart->SRAM);
+        free(cart->trainer);
         panic("not a valid cartridge (PRG truncated)");
+    }
+    if (cart->PRG_size > 10000000) {
+        free(cart->SRAM);
+        free(cart->trainer);
+        panic("Invalid PRG_size (> 10 MB)");
+    }
     cart->PRG = malloc_or_fail(cart->PRG_size);
     memcpy(cart->PRG, raw.buffer + file_off, cart->PRG_size);
     file_off += cart->PRG_size;
@@ -129,8 +137,12 @@ Cartridge* cartridge_load_from_buffer(Buffer raw)
         cart->CHR      = calloc_or_fail(1 << 13);
         cart->CHR_size = 1 << 13;
     } else {
-        if (file_off + cart->CHR_size > raw.size)
+        if (file_off + cart->CHR_size > raw.size) {
+            free(cart->SRAM);
+            free(cart->PRG);
+            free(cart->trainer);
             panic("not a valid cartridge (CHR truncated)");
+        }
 
         cart->CHR = malloc_or_fail(cart->CHR_size);
         memcpy(cart->CHR, raw.buffer + file_off, cart->CHR_size);
@@ -138,7 +150,7 @@ Cartridge* cartridge_load_from_buffer(Buffer raw)
     }
 
     if (file_off != raw.size)
-        panic("not a valid cartridge (unread data at the end)");
+        warning("not a valid cartridge (unread data at the end)");
 
     return cart;
 }
