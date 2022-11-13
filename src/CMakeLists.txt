@@ -5,9 +5,9 @@ project ( borzNES )
 option ( ASAN "Compile with asan (only for debug builds)" OFF )
 option ( WIN  "Cross-compile for Windows" OFF )
 option ( GWDEBUG  "Enable rich debug game window" OFF )
-option ( CIFUZZ "Build CIFuzz Tests" OFF )
 
 set ( WIN_SDL2 "" CACHE STRING "Path to sdl2 mingw" )
+set ( CIFUZZ $ENV{CIFUZZ} )
 
 set ( CMAKE_C_STANDARD 17 )
 
@@ -29,7 +29,6 @@ set ( borzNES_src
     apu.c
     alloc.c
     cartridge.c
-    logging.c
     mapper.c
     memory.c
     ppu.c
@@ -72,11 +71,13 @@ endif ()
 
 add_executable ( borznes_multi
     ${borzNES_src}
+    logging.c
     async.c
     tools/borznes_multi.c )
 
 add_executable ( borznes
     ${borzNES_src}
+    logging.c
     async.c
     tools/borznes.c )
 
@@ -88,6 +89,7 @@ add_executable ( rom_info
 
 add_executable ( define_keys
     ${borzNES_src}
+    logging.c
     tools/define_keys.c )
 
 target_link_libraries ( borznes LINK_PUBLIC SDL2 SDL2_ttf )
@@ -134,7 +136,14 @@ endif ()
 if ( CIFUZZ )
     add_fuzz_test ( system_fuzz_test
         ${borzNES_src}
-        tests/system_fuzz_test.cpp )
+        tests/system_fuzz_test.c )
 
     target_link_libraries ( system_fuzz_test LINK_PUBLIC SDL2 SDL2_ttf )
+
+    add_fuzz_test ( cpu_fuzz_test
+        ${borzNES_src}
+        tests/cpu_fuzz_test.c )
+
+    target_link_libraries ( cpu_fuzz_test LINK_PUBLIC SDL2 SDL2_ttf )
+
 endif ()

@@ -1,7 +1,0 @@
-cartridge-load-fuzz
-system-exec-fuzz
-cpu-fuzz
-
-seeds/
-
-.clang-format
