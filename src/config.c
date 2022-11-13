@@ -46,8 +46,8 @@ void config_unload()
     while (curr != NULL) {
         ConfigNode* prev = curr;
         curr             = curr->next;
-        free(prev->key);
-        free(prev);
+        free_or_fail(prev->key);
+        free_or_fail(prev);
     }
 }
 

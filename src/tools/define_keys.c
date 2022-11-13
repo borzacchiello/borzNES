@@ -73,7 +73,7 @@ int main(int argc, char const* argv[])
 
     for (int i = 0; i < joysticks_size; ++i)
         SDL_JoystickClose(joysticks[i]);
-    free(joysticks);
+    free_or_fail(joysticks);
     window_destroy(win);
     return 0;
 }

@@ -214,6 +214,6 @@ void input_handler_destroy(InputHandler* ih)
 {
     for (int i = 0; i < ih->joysticks_size; ++i)
         SDL_JoystickClose(ih->joysticks[i]);
-    free(ih->joysticks);
-    free(ih);
+    free_or_fail(ih->joysticks);
+    free_or_fail(ih);
 }

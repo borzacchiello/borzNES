@@ -47,6 +47,8 @@ if ( CIFUZZ )
 
     find_package ( cifuzz NO_SYSTEM_ENVIRONMENT_PATH )
     enable_fuzz_testing ()
+
+    add_compile_definitions ( NOLEAK=1 )
 endif ()
 
 if ( GWDEBUG )

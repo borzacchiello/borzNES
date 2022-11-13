@@ -52,8 +52,8 @@ void system_destroy(System* sys)
     cpu_destroy(sys->cpu);
     ppu_destroy(sys->ppu);
     apu_destroy(sys->apu);
-    free(sys->state_save_path);
-    free(sys);
+    free_or_fail(sys->state_save_path);
+    free_or_fail(sys);
 }
 
 uint64_t system_step(System* sys)
@@ -139,7 +139,7 @@ void system_load_state(System* sys, const char* path)
     if (ram_state.size != sizeof(sys->RAM))
         panic("system_load_state(): invalid buffer");
     memcpy(sys->RAM, ram_state.buffer, ram_state.size);
-    free(ram_state.buffer);
+    free_or_fail(ram_state.buffer);
 
     cartridge_deserialize(sys->cart, fin);
     cpu_deserialize(sys->cpu, fin);

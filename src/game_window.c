@@ -86,7 +86,7 @@ void rich_gw_destroy(void* _gw)
     SDL_FreeSurface(gw->patterntab1_surface);
     SDL_FreeSurface(gw->patterntab2_surface);
 
-    free(gw);
+    free_or_fail(gw);
 }
 
 void rich_gw_set_pixel(void* _gw, int x, int y, uint32_t rgba)
@@ -359,7 +359,7 @@ static void simple_gw_destroy(void* _gw)
 
     window_destroy(gw->win);
     SDL_FreeSurface(gw->gamewin_surface);
-    free(gw);
+    free_or_fail(gw);
 }
 
 static void simple_gw_set_pixel(void* _gw, int x, int y, uint32_t rgba)
@@ -440,7 +440,7 @@ GameWindow* simple_gw_build(struct System* sys)
 void gamewindow_destroy(GameWindow* gw)
 {
     gw->destroy(gw->obj);
-    free(gw);
+    free_or_fail(gw);
 }
 
 void gamewindow_set_pixel(GameWindow* gw, int x, int y, uint32_t rgba)

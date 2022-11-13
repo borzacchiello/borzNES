@@ -754,7 +754,7 @@ Cpu* cpu_standalone_build()
 void cpu_destroy(Cpu* cpu)
 {
     memory_destroy(cpu->mem);
-    free(cpu);
+    free_or_fail(cpu);
 }
 
 void cpu_reset(Cpu* cpu)
@@ -1047,5 +1047,5 @@ void cpu_deserialize(Cpu* cpu, FILE* ifile)
     memcpy(cpu, buf.buffer, buf.size);
     cpu->sys = tmp_sys;
     cpu->mem = tmp_mem;
-    free(buf.buffer);
+    free_or_fail(buf.buffer);
 }

@@ -145,8 +145,8 @@ Apu* apu_build(struct System* sys)
 void apu_destroy(Apu* apu)
 {
     SDL_CloseAudioDevice(apu->dev);
-    free(apu->sound_buffer);
-    free(apu);
+    free_or_fail(apu->sound_buffer);
+    free_or_fail(apu);
 }
 
 static void pulse_write_control(Pulse* pulse, uint8_t value)

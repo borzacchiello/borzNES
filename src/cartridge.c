@@ -118,16 +118,11 @@ Cartridge* cartridge_load_from_buffer(Buffer raw)
     } else
         cart->trainer = NULL;
 
-    if (file_off + cart->PRG_size > raw.size) {
-        free(cart->SRAM);
-        free(cart->trainer);
+    if (file_off + cart->PRG_size > raw.size)
         panic("not a valid cartridge (PRG truncated)");
-    }
-    if (cart->PRG_size > 10000000) {
-        free(cart->SRAM);
-        free(cart->trainer);
+    if (cart->PRG_size > 10000000)
         panic("Invalid PRG_size (> 10 MB)");
-    }
+
     cart->PRG = malloc_or_fail(cart->PRG_size);
     memcpy(cart->PRG, raw.buffer + file_off, cart->PRG_size);
     file_off += cart->PRG_size;
@@ -137,12 +132,8 @@ Cartridge* cartridge_load_from_buffer(Buffer raw)
         cart->CHR      = calloc_or_fail(1 << 13);
         cart->CHR_size = 1 << 13;
     } else {
-        if (file_off + cart->CHR_size > raw.size) {
-            free(cart->SRAM);
-            free(cart->PRG);
-            free(cart->trainer);
+        if (file_off + cart->CHR_size > raw.size)
             panic("not a valid cartridge (CHR truncated)");
-        }
 
         cart->CHR = malloc_or_fail(cart->CHR_size);
         memcpy(cart->CHR, raw.buffer + file_off, cart->CHR_size);
@@ -164,7 +155,7 @@ Cartridge* cartridge_load(const char* path)
     cart->sav_path  = cart->battery ? get_sav_path(path) : NULL;
 
     cartridge_load_sav(cart);
-    free(raw.buffer);
+    free_or_fail(raw.buffer);
     return cart;
 }
 
@@ -172,13 +163,13 @@ void cartridge_unload(Cartridge* cart)
 {
     cartridge_save_sav(cart);
 
-    free(cart->trainer);
-    free(cart->PRG);
-    free(cart->CHR);
-    free(cart->SRAM);
-    free(cart->fpath);
-    free(cart->sav_path);
-    free(cart);
+    free_or_fail(cart->trainer);
+    free_or_fail(cart->PRG);
+    free_or_fail(cart->CHR);
+    free_or_fail(cart->SRAM);
+    free_or_fail(cart->fpath);
+    free_or_fail(cart->sav_path);
+    free_or_fail(cart);
 }
 
 void cartridge_load_sav(Cartridge* cart)
@@ -195,7 +186,7 @@ void cartridge_load_sav(Cartridge* cart)
         panic("invalid sav file");
 
     memcpy(cart->SRAM, ram.buffer, ram.size);
-    free(ram.buffer);
+    free_or_fail(ram.buffer);
 }
 
 void cartridge_save_sav(Cartridge* cart)
@@ -258,17 +249,17 @@ void cartridge_deserialize(Cartridge* cart, FILE* ifile)
     if (buf.size != cart->SRAM_size)
         panic("cartridge_deserialize(): invalid buffer SRAM");
     memcpy(cart->SRAM, buf.buffer, buf.size);
-    free(buf.buffer);
+    free_or_fail(buf.buffer);
 
     buf = read_buffer(ifile);
     if (buf.size != cart->CHR_size)
         panic("cartridge_deserialize(): invalid buffer CHR");
     memcpy(cart->CHR, buf.buffer, buf.size);
-    free(buf.buffer);
+    free_or_fail(buf.buffer);
 
     buf = read_buffer(ifile);
     if (buf.size != sizeof(cart->mirror))
         panic("cartridge_deserialize(): invalid buffer Mirror");
     cart->mirror = *(Mirroring*)buf.buffer;
-    free(buf.buffer);
+    free_or_fail(buf.buffer);
 }

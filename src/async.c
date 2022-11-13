@@ -59,7 +59,7 @@ void async_destroy(AsyncContext* ac)
         warning("async_destroy(): unable to destroy mutex_1");
     if (pthread_mutex_destroy(&ac->mutex_2) != 0)
         warning("async_destroy(): unable to destroy mutex_2");
-    free(ac);
+    free_or_fail(ac);
 }
 
 void async_send(AsyncContext* ac, int fd, const void* i_buf, int64_t size)

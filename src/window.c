@@ -112,7 +112,7 @@ void window_destroy(Window* win)
     TTF_CloseFont(win->text_font);
     TTF_Quit();
 
-    free(win);
+    free_or_fail(win);
 }
 
 static void window_draw_text_internal(Window* win, uint32_t row, uint32_t col,
@@ -158,7 +158,7 @@ void window_draw_text(Window* win, uint32_t row, uint32_t col, int shaded,
         token = strtok(NULL, "\n");
     }
 
-    free(text_dup);
+    free_or_fail(text_dup);
 }
 
 void window_draw_pixel(Window* win, Point p, Color c)

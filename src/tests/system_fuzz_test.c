@@ -49,8 +49,8 @@ static void del_sys(System* sys)
         cpu_destroy(sys->cpu);
     if (sys->ppu)
         ppu_destroy(sys->ppu);
-    free(sys->apu);
-    free(sys);
+    free_or_fail(sys->apu);
+    free_or_fail(sys);
 }
 
 FUZZ_TEST_SETUP()

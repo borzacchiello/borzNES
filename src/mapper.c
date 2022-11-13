@@ -42,7 +42,7 @@ static void standard_nametable_write(void* _map, Ppu* ppu, uint16_t addr,
     ppu->nametable_data[mirror_address(ppu->sys->cart->mirror, addr)] = value;
 }
 
-static void generic_destroy(void* _map) { free(_map); }
+static void generic_destroy(void* _map) { free_or_fail(_map); }
 
 // Polymorphic Mapper
 Mapper* mapper_build(Cartridge* cart)
@@ -171,7 +171,7 @@ Mapper* mapper_build(Cartridge* cart)
 void mapper_destroy(Mapper* map)
 {
     map->destroy(map->obj);
-    free(map);
+    free_or_fail(map);
 }
 
 uint8_t mapper_read(Mapper* map, uint16_t addr)

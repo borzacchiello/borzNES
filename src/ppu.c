@@ -97,7 +97,7 @@ Ppu* ppu_build(System* sys)
 void ppu_destroy(Ppu* ppu)
 {
     memory_destroy(ppu->mem);
-    free(ppu);
+    free_or_fail(ppu);
 }
 
 void ppu_set_game_window(Ppu* ppu, GameWindow* gw) { ppu->gw = gw; }
@@ -815,5 +815,5 @@ void ppu_deserialize(Ppu* ppu, FILE* ifile)
     ppu->sys = tmp_sys;
     ppu->mem = tmp_mem;
     ppu->gw  = tmp_gw;
-    free(buf.buffer);
+    free_or_fail(buf.buffer);
 }

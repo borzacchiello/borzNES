@@ -25,8 +25,7 @@ seed-corpus-dirs:
 ## AFL++). See https://llvm.org/docs/LibFuzzer.html#options and
 ## https://www.mankier.com/8/afl-fuzz.
 engine-args:
- - -rss_limit_mb=6000
- - -detect_leaks=0
+ - -rss_limit_mb=4096
 
 ## Maximum time to run fuzz tests. The default is to run indefinitely.
 #timeout: 30m

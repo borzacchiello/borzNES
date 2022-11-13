@@ -35,7 +35,7 @@
         void* tmp_cart = map->cart;                                            \
         memcpy(map, buf.buffer, buf.size);                                     \
         map->cart = tmp_cart;                                                  \
-        free(buf.buffer);                                                      \
+        free_or_fail(buf.buffer);                                                      \
     }
 
 int32_t calc_prg_bank_offset(Cartridge* cart, int32_t idx, uint32_t bank_size);

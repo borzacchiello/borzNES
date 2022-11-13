@@ -1,4 +1,5 @@
 #include "logging.h"
+#include "alloc.h"
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -18,6 +18,7 @@ void panic(char *format, ...)
     vfprintf(stderr, format, argp);
     fprintf(stderr, "\n");
 
+    free_all();
     longjmp(env, 1);
 }
 

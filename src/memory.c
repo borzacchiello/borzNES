@@ -27,7 +27,7 @@ static InternalMemory* internal_memory_build(System* sys)
 static void internal_memory_destroy(void* _mem)
 {
     InternalMemory* mem = (InternalMemory*)_mem;
-    free(mem);
+    free_or_fail(mem);
 }
 
 static InternalStandaloneMemory* _standalone_memory_build()
@@ -41,8 +41,8 @@ static InternalStandaloneMemory* _standalone_memory_build()
 static void standalone_memory_destroy(void* _mem)
 {
     InternalStandaloneMemory* mem = (InternalStandaloneMemory*)_mem;
-    free(mem->buf);
-    free(mem);
+    free_or_fail(mem->buf);
+    free_or_fail(mem);
 }
 
 static uint8_t cpu_memory_read(void* _mem, uint16_t addr)
@@ -234,7 +234,7 @@ Memory* standalone_memory_build()
 void memory_destroy(Memory* mem)
 {
     mem->destroy(mem->obj);
-    free(mem);
+    free_or_fail(mem);
 }
 
 uint8_t memory_read(Memory* mem, uint16_t addr)
