@@ -5,6 +5,7 @@ project ( borzNES )
 option ( ASAN "Compile with asan (only for debug builds)" OFF )
 option ( WIN  "Cross-compile for Windows" OFF )
 option ( GWDEBUG  "Enable rich debug game window" OFF )
+option ( CIFUZZ "Build CIFuzz Tests" OFF )
 
 set ( WIN_SDL2 "" CACHE STRING "Path to sdl2 mingw" )
 
@@ -41,6 +42,13 @@ set ( borzNES_src
 
 set ( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Wall" )
 set ( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer -Wall" )
+
+if ( CIFUZZ )
+    enable_testing ()
+
+    find_package ( cifuzz NO_SYSTEM_ENVIRONMENT_PATH )
+    enable_fuzz_testing ()
+endif ()
 
 if ( GWDEBUG )
     set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DENABLE_DEBUG_GW" )
@@ -121,4 +129,12 @@ if ( WIN )
         COMMAND ${CMAKE_COMMAND} -E copy
                 /usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll
                 ${CMAKE_CURRENT_BINARY_DIR}/libwinpthread-1.dll )
+endif ()
+
+if ( CIFUZZ )
+    add_fuzz_test ( system_fuzz_test
+        ${borzNES_src}
+        tests/system_fuzz_test.cpp )
+
+    target_link_libraries ( system_fuzz_test LINK_PUBLIC SDL2 SDL2_ttf )
 endif ()
