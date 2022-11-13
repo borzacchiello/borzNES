@@ -1,3 +1,5 @@
 .vscode/
 build/
 build_win/
+src/.cifuzz-build/
+
