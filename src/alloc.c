@@ -90,6 +90,7 @@ void* realloc_or_fail(void* b, size_t size)
         panic("realloc failed");
 
 #ifdef NOLEAK
+    remove_from_allocated(b);
     add_to_allocated(r);
 #endif
     return r;
