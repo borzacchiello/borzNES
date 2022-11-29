@@ -14,7 +14,6 @@ Color color_black = {0, 0, 0, 0};
 static volatile int g_is_window_created = 0;
 
 #ifdef __MINGW32__
-extern char* strdup(const char*);
 extern char* strtok(char* str, const char* delim);
 #endif
 
@@ -147,9 +146,7 @@ static void window_draw_text_internal(Window* win, uint32_t row, uint32_t col,
 void window_draw_text(Window* win, uint32_t row, uint32_t col, int shaded,
                       Color color, const char* text)
 {
-    char* text_dup = strdup(text);
-    if (text_dup == NULL)
-        panic("strdup failed");
+    char* text_dup = strdup_or_fail(text);
 
     uint32_t i     = 0;
     char*    token = strtok(text_dup, "\n");

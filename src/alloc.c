@@ -3,6 +3,10 @@
 
 #include <string.h>
 
+#ifdef __MINGW32__
+extern char* strdup(const char*);
+#endif
+
 #ifdef NOLEAK
 static void** allocated;
 static size_t allocated_size;
@@ -63,6 +67,18 @@ void* malloc_or_fail(size_t n)
     void* r = malloc(n);
     if (r == NULL)
         panic("malloc failed");
+
+#ifdef NOLEAK
+    add_to_allocated(r);
+#endif
+    return r;
+}
+
+char* strdup_or_fail(const char* s)
+{
+    char* r = strdup(s);
+    if (r == NULL)
+        panic("strdup failed");
 
 #ifdef NOLEAK
     add_to_allocated(r);

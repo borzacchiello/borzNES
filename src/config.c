@@ -32,7 +32,7 @@ void config_load(const char* filename)
             panic("config_load(): invalid config line \"%s\"", buf);
 
         ConfigNode* n = malloc_or_fail(sizeof(ConfigNode));
-        n->key        = strdup(tmp);
+        n->key        = strdup_or_fail(tmp);
         n->value      = value;
         n->next       = g_cfg;
         g_cfg         = n;
@@ -90,7 +90,7 @@ void config_set_value(const char* key, uint64_t value)
     }
 
     ConfigNode* n = malloc_or_fail(sizeof(ConfigNode));
-    n->key        = strdup(key);
+    n->key        = strdup_or_fail(key);
     n->value      = value;
     n->next       = g_cfg;
     g_cfg         = n;

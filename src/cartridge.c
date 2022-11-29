@@ -151,7 +151,7 @@ Cartridge* cartridge_load(const char* path)
     Buffer raw = read_file_raw(path);
 
     Cartridge* cart = cartridge_load_from_buffer(raw);
-    cart->fpath     = strdup(path);
+    cart->fpath     = strdup_or_fail(path);
     cart->sav_path  = cart->battery ? get_sav_path(path) : NULL;
 
     cartridge_load_sav(cart);
