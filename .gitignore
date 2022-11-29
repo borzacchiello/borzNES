@@ -6,3 +6,4 @@ src/.cifuzz-build/
 src/.cifuzz-corpus/
 src/.cifuzz-findings/
 src/system_fuzz_test_inputs/
+src/load_state_fuzz_test_inputs/

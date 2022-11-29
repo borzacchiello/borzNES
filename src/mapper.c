@@ -23,7 +23,8 @@ static uint16_t ppu_mirror_tab[5][4] = {
 
 static uint16_t mirror_address(uint8_t mirror_type, uint16_t addr)
 {
-    assert(mirror_type >= 0 && mirror_type <= 4);
+    if (!(mirror_type >= 0 && mirror_type <= 4))
+        panic("Invalid mirror type");
 
     addr         = (addr - 0x2000) % 0x1000;
     uint16_t tab = addr / 0x400;
