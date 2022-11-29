@@ -12,12 +12,10 @@ FUZZ_TEST_SETUP()
 
 FUZZ_TEST(const uint8_t* data, size_t size)
 {
-    System* sys = NULL;
+    static System* sys = NULL;
 
     int result = setjmp(env);
     if (result != 0) {
-        if (sys)
-            del_sys(sys);
         return;
     }
 

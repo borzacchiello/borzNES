@@ -28,13 +28,11 @@ FUZZ_TEST_SETUP()
 
 FUZZ_TEST(const uint8_t* data, size_t size)
 {
-    System* sys = NULL;
-    FILE*   fin = NULL;
+    static System* sys = NULL;
+    static FILE*   fin = NULL;
 
     int result = setjmp(env);
     if (result != 0) {
-        if (sys)
-            del_sys(sys);
         if (fin)
             fclose(fin);
         return;
@@ -57,7 +55,8 @@ FUZZ_TEST(const uint8_t* data, size_t size)
     if (fin == NULL)
         abort();
     load_state(sys, fin);
-    fclose(fin);
+    if (fclose(fin) != 0)
+        abort();
     fin = NULL;
 
     for (long i = 0; i < N; ++i) {

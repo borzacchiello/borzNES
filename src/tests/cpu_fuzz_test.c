@@ -15,12 +15,10 @@ FUZZ_TEST_SETUP()
 
 FUZZ_TEST(const uint8_t* data, size_t size)
 {
-    Cpu* cpu = NULL;
+    static Cpu* cpu = NULL;
 
     int result = setjmp(env);
     if (result != 0) {
-        if (cpu)
-            cpu_destroy(cpu);
         return;
     }
 
