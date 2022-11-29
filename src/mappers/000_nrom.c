@@ -55,5 +55,13 @@ void NROM_write(void* _map, uint16_t addr, uint8_t value)
     }
 }
 
+static void NROM_postcheck(void* _map)
+{
+    NROM* map = (NROM*)_map;
+
+    if (map->prg_banks == 0)
+        panic("NROM: invalid prg_banks");
+}
+
 GEN_SERIALIZER(NROM)
-GEN_DESERIALIZER(NROM)
+GEN_DESERIALIZER_WITH_POSTCHECK(NROM, NROM_postcheck)
