@@ -148,4 +148,10 @@ if ( CIFUZZ )
 
     target_link_libraries ( cpu_fuzz_test LINK_PUBLIC SDL2 SDL2_ttf )
 
+    add_fuzz_test ( load_state_fuzz_test
+        ${borzNES_src}
+        tests/load_state_fuzz_test.c )
+
+    target_link_libraries ( load_state_fuzz_test LINK_PUBLIC SDL2 SDL2_ttf )
+
 endif ()
