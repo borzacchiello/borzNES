@@ -817,6 +817,8 @@ void ppu_deserialize(Ppu* ppu, FILE* ifile)
     ppu->gw  = tmp_gw;
     free_or_fail(buf.buffer);
 
+    ppu->x &= 0x07;
+
     if (ppu->sprite_count > MAX_SPRITES)
         panic("ppu_deserialize(): invalid sprite_count");
 
