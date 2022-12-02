@@ -34,13 +34,15 @@ static uint16_t mirror_address(uint8_t mirror_type, uint16_t addr)
 
 static uint8_t standard_nametable_read(void* _map, Ppu* ppu, uint16_t addr)
 {
-    return ppu->nametable_data[mirror_address(ppu->sys->cart->mirror, addr)];
+    return ppu
+        ->nametable_data[mirror_address(ppu->sys->cart->mirror, addr) & 0x7ff];
 }
 
 static void standard_nametable_write(void* _map, Ppu* ppu, uint16_t addr,
                                      uint8_t value)
 {
-    ppu->nametable_data[mirror_address(ppu->sys->cart->mirror, addr)] = value;
+    ppu->nametable_data[mirror_address(ppu->sys->cart->mirror, addr) & 0x7ff] =
+        value;
 }
 
 static void generic_destroy(void* _map) { free_or_fail(_map); }
