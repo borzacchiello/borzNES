@@ -59,8 +59,9 @@ static void NROM_postcheck(void* _map)
 {
     NROM* map = (NROM*)_map;
 
-    if (map->prg_banks == 0)
-        panic("NROM: invalid prg_banks");
+    map->prg_banks = map->cart->PRG_size / 0x4000;
+    map->prg_bank1 %= map->prg_banks;
+    map->prg_bank2 %= map->prg_banks;
 }
 
 GEN_SERIALIZER(NROM)
